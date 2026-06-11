@@ -1,0 +1,29 @@
+{
+  "name": "帳票作成ソフト",
+  "short_name": "FormGen",
+  "description": "見積書・請求書・納品書の作成・プレビューソフト",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/stamp.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/stamp.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/json": [".formgen"]
+      }
+    }
+  ]
+}
