@@ -14,27 +14,42 @@ export interface LineItem {
 
 export interface DocumentInfo {
   type: DocumentType;
-  documentNumber: string; // 見積番号など
-  referenceNumber: string; // ご発注書番号など (任意)
+  documentNumber: string;
+  referenceNumber: string;
   date: string;
-  recipientName: string; // 宛先 (株式会社〇〇 様)
-  subject: string; // 件名
-  condition: string; // 有効期限、または支払条件
+  estimateNumber: string; // 見積書番号 (請求書・納品書のみ使用)
+  recipientName: string;
+  subject: string;
+  condition: string;
 }
 
 export interface IssuerInfo {
   companyName: string;
-  address1: string; // 〒〇〇〇-〇〇〇〇 住所
-  address2: string; // ビル名など
+  address1: string;
+  address2: string;
   tel: string;
   email: string;
-  registrationNumber: string; // 登録番号(インボイス)
-  bankInfo: string; // 振込先情報など (複数行可)
-  message: string; // 挨拶文など
+  registrationNumber: string;
+  bankInfo: string;
+  message: string;
 }
 
 export interface DocumentData {
   info: DocumentInfo;
   issuer: IssuerInfo;
   items: LineItem[];
+}
+
+export interface DocumentSet {
+  id: string;
+  estimate: DocumentData;
+  invoice: DocumentData | null;
+  delivery: DocumentData | null;
+}
+
+export interface FormgenFileV2 {
+  version: 2;
+  activeSetId: string;
+  activeType: DocumentType;
+  sets: DocumentSet[];
 }

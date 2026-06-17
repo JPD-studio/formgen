@@ -1,14 +1,15 @@
 import React from 'react';
-import { DocumentData, LineItem, DocumentType } from '@/types';
+import { DocumentData, LineItem } from '@/types';
 import { Printer, Plus, Trash2 } from 'lucide-react';
 
 interface FormPanelProps {
   data: DocumentData;
   setData: React.Dispatch<React.SetStateAction<DocumentData>>;
   onPrint: () => void;
+  children?: React.ReactNode; // DocumentTypeTabsを受け取るスロット
 }
 
-export default function FormPanel({ data, setData, onPrint }: FormPanelProps) {
+export default function FormPanel({ data, setData, onPrint, children }: FormPanelProps) {
   const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setData(prev => ({
@@ -54,41 +55,37 @@ export default function FormPanel({ data, setData, onPrint }: FormPanelProps) {
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-sm z-10 py-2 border-b border-gray-100">
-        <h2 className="text-xl font-bold text-gray-800">帳票入力</h2>
-        <button 
-          onClick={onPrint}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm"
-        >
-          <Printer size={18} />
-          印刷・PDF化
-        </button>
+      <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 py-2 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-800">帳票入力</h2>
+          <button
+            onClick={onPrint}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm"
+          >
+            <Printer size={18} />
+            印刷・PDF化
+          </button>
+        </div>
+        {children}
       </div>
 
       {/* 基本情報 */}
       <section className="space-y-4">
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">基本情報</h3>
         <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">帳票種別</label>
-            <select 
-              name="type" 
-              value={data.info.type} 
-              onChange={handleInfoChange}
-              className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
-            >
-              <option value="見積書">見積書</option>
-              <option value="請求書">請求書</option>
-              <option value="納品書">納品書</option>
-            </select>
-          </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">文書番号</label>
             <input type="text" name="documentNumber" value={data.info.documentNumber} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" />
           </div>
-          <div>
+          {data.info.type !== '見積書' && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">見積書番号</label>
+              <input type="text" name="estimateNumber" value={data.info.estimateNumber} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" placeholder="例: 20260617-001" />
+            </div>
+          )}
+          <div className={data.info.type !== '見積書' ? 'col-span-2' : ''}>
             <label className="block text-xs text-gray-500 mb-1">日付</label>
-            <input type="date" name="date" value={data.info.date} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" />
+            <input type="text" name="date" value={data.info.date} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" placeholder="例: 2026年6月17日" />
           </div>
           <div className="col-span-2">
             <label className="block text-xs text-gray-500 mb-1">宛先 (敬称含め)</label>

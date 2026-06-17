@@ -1,6 +1,5 @@
 import React from 'react';
-import { DocumentData, LineItem, TaxRate } from '@/types';
-import { cn } from '@/lib/utils';
+import { DocumentData } from '@/types';
 
 interface PreviewPanelProps {
   data: DocumentData;
@@ -74,6 +73,9 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
 
           {info.referenceNumber && (
             <p className="text-[9pt] mt-1">ご発注書番号: {info.referenceNumber}</p>
+          )}
+          {info.estimateNumber && (
+            <p className="text-[9pt] mt-1">見積書番号: {info.estimateNumber}</p>
           )}
         </div>
 
