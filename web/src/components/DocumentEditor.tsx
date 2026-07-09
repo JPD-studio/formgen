@@ -57,6 +57,22 @@ export default function DocumentEditor() {
   const [activeType, setActiveType] = useState<DocumentType>('見積書');
   const [isLoaded, setIsLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+
+  // プレビューのスケール計算
+  useEffect(() => {
+    const container = previewContainerRef.current;
+    if (!container) return;
+    const update = () => {
+      const available = container.clientWidth - 64; // p-8 (32px) × 2
+      setPreviewScale(Math.min(1, available / 794));
+    };
+    const ro = new ResizeObserver(update);
+    ro.observe(container);
+    update();
+    return () => ro.disconnect();
+  }, []);
 
   // 初回マウント: localStorage復元（v2 → v1フォールバック）
   useEffect(() => {
@@ -256,8 +272,16 @@ export default function DocumentEditor() {
         </div>
 
         {/* 右側：プレビュー */}
-        <div className="flex-1 h-full overflow-y-auto bg-neutral-200 p-8 flex justify-center print:p-0 print:bg-white print:overflow-visible">
-          <PreviewPanel data={activeData} />
+        <div
+          ref={previewContainerRef}
+          className="flex-1 h-full overflow-y-auto bg-neutral-200 p-8 flex justify-center items-start print:p-0 print:bg-white print:overflow-visible"
+        >
+          <div
+            className="preview-zoom-wrapper"
+            style={{ zoom: previewScale }}
+          >
+            <PreviewPanel data={activeData} />
+          </div>
         </div>
       </div>
     </div>

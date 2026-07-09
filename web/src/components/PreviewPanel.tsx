@@ -36,10 +36,10 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
 
   return (
     // A4サイズアスペクト比 (210x297mm)
-    <div className="bg-white w-[210mm] min-h-[297mm] shadow-md print:shadow-none pt-[25mm] pb-[35mm] pl-[25mm] pr-[30mm] text-[10pt] font-serif flex flex-col relative mx-auto">
-      
+    <div className="bg-white w-[794px] shadow-md print:shadow-none pt-[57px] pb-[57px] pl-[95px] pr-[114px] text-[10pt] font-serif flex flex-col relative mx-auto">
+
       {/* ページ上部 */}
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex justify-between items-start mb-2">
         <div className="w-1/2"></div>
         <div className="text-right text-[9pt] space-y-1">
           <p>1 / 1</p>
@@ -49,20 +49,21 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
       </div>
 
       {/* タイトル */}
-      <div className="text-center mb-10">
+      <div className="text-center mb-4">
         <h1 className="text-3xl font-bold tracking-widest">{info.type}</h1>
       </div>
 
       {/* 宛先と発行者 */}
-      <div className="flex justify-between mb-8">
+      <div className="flex justify-between mb-4">
         <div className="w-[50%] pr-4 space-y-4">
-          <div className="border-b border-black pb-1 mb-4 text-lg">
-            {info.recipientName}
+          <div className="border-b border-black pb-1 mb-2 text-[11pt] flex items-end justify-between gap-2">
+            <span>{info.recipientName.replace(/様\s*$/, '')}</span>
+            <span className="shrink-0">様</span>
           </div>
           <p>件名 : {info.subject}</p>
-          
-          <div className="mt-6 text-xl border-b-2 border-black pb-1 inline-block min-w-[80%] whitespace-nowrap">
-            ご請求金額　{formatCurrency(totals.total)}({info.type === '見積書' ? '外税' : '内税'})
+
+          <div className="mt-2 text-[13pt] border-b-2 border-black pb-1 inline-block min-w-[80%] whitespace-nowrap">
+            {info.type === '見積書' ? '御見積金額' : 'ご請求金額'}　{formatCurrency(totals.total)}({info.type === '見積書' ? '外税' : '内税'})
           </div>
           
           {info.condition && (
@@ -127,7 +128,7 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
       </table>
 
       {/* 金額サマリ */}
-      <div className="flex justify-end mb-8">
+      <div className="flex justify-end mb-3">
         <div className="w-[30%]">
           <table className="w-full border-collapse border border-black">
             <tbody>
@@ -149,7 +150,7 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
       </div>
 
       {/* 税率ごとの内訳（インボイス対応） */}
-      <div className="flex justify-end mb-8">
+      <div className="flex justify-end mb-3">
         <div className="w-[50%]">
           <table className="w-full border-collapse border border-black text-[8pt]">
             <tbody>
@@ -177,7 +178,7 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
       </div>
 
       {/* 備考と振込先 */}
-      <div className="mt-auto pt-8 space-y-4 text-[9pt]">
+      <div className="mt-4 pt-2 space-y-2 text-[9pt]">
         <p>{issuer.message}</p>
         <div className="whitespace-pre-wrap">{issuer.bankInfo}</div>
       </div>
