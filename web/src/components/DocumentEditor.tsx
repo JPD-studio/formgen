@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DocumentData, DocumentSet, DocumentType, FormgenFileV2 } from '@/types';
-import { Download, FolderOpen } from 'lucide-react';
+import { Download, FolderOpen, MonitorDown } from 'lucide-react';
 import FormPanel from './FormPanel';
 import PreviewPanel from './PreviewPanel';
 import DocumentTypeTabs from './DocumentTypeTabs';
@@ -59,6 +59,27 @@ export default function DocumentEditor() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
+  const [installPrompt, setInstallPrompt] = useState<Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
+
+  // PWAインストールプロンプト
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as any);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', () => setInstallPrompt(null));
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') setInstallPrompt(null);
+  };
 
   // プレビューのスケール計算
   useEffect(() => {
@@ -243,6 +264,14 @@ export default function DocumentEditor() {
             ref={fileInputRef}
             onChange={handleOpen}
           />
+          {installPrompt && (
+            <button
+              onClick={handleInstall}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition"
+            >
+              <MonitorDown size={16} /> インストール
+            </button>
+          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition"
