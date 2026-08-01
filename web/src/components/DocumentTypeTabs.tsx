@@ -1,47 +1,35 @@
+'use client';
+
 import React from 'react';
-import { DocumentType } from '@/types';
 import { Plus } from 'lucide-react';
+import { DOCUMENT_TYPES, Project } from '@/types';
+import { useStore } from '@/lib/FormgenStore';
 
-interface DocumentTypeTabsProps {
-  activeType: DocumentType;
-  hasInvoice: boolean;
-  hasDelivery: boolean;
-  onSwitch: (type: DocumentType) => void;
-}
-
-const TABS: { type: DocumentType; label: string }[] = [
-  { type: '見積書', label: '見積書' },
-  { type: '請求書', label: '請求書' },
-  { type: '納品書', label: '納品書' },
-];
-
-export default function DocumentTypeTabs({ activeType, hasInvoice, hasDelivery, onSwitch }: DocumentTypeTabsProps) {
-  function isGenerated(type: DocumentType): boolean {
-    if (type === '見積書') return true;
-    if (type === '請求書') return hasInvoice;
-    return hasDelivery;
-  }
+export default function DocumentTypeTabs({ project }: { project: Project }) {
+  const store = useStore();
+  const activeType = store.ui.activeType;
 
   return (
-    <div className="flex gap-1 mt-2">
-      {TABS.map(({ type, label }) => {
-        const active = type === activeType;
-        const generated = isGenerated(type);
+    <div className="mt-2 flex gap-1">
+      {DOCUMENT_TYPES.map(type => {
+        const exists = !!project.documents[type];
+        const active = activeType === type && exists;
         return (
           <button
             key={type}
-            onClick={() => onSwitch(type)}
+            onClick={() => (exists ? store.setActiveType(type) : store.ensureDocument(type))}
+            title={exists ? type : `${type}を作成`}
             className={[
-              'flex items-center gap-1 px-3 py-1 text-sm rounded-md border transition-colors',
+              'flex items-center gap-1 rounded-md border px-3 py-1 text-sm transition-colors',
               active
-                ? 'bg-blue-600 text-white border-blue-600'
-                : generated
-                ? 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
-                : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50 hover:text-gray-600',
+                ? 'border-blue-600 bg-blue-600 text-white'
+                : exists
+                  ? 'border-blue-300 bg-white text-blue-600 hover:bg-blue-50'
+                  : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50 hover:text-gray-600',
             ].join(' ')}
           >
-            {!generated && <Plus size={12} />}
-            {label}
+            {!exists && <Plus size={12} />}
+            {type}
           </button>
         );
       })}

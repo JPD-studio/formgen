@@ -1,6 +1,6 @@
-const CACHE_NAME = 'formgen-v1';
+const CACHE_NAME = 'formgen-v2';
 
-const PRECACHE_ASSETS = ['/', '/manifest.json', '/stamp.png'];
+const PRECACHE_ASSETS = ['/', '/manifest.json', '/stamp.png', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

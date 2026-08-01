@@ -1,87 +1,55 @@
-"use client";
+'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { DocumentData, DocumentSet, DocumentType, FormgenFileV2 } from '@/types';
-import { Download, FolderOpen, MonitorDown } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Building2, MonitorDown, PanelLeftClose, PanelLeftOpen, RefreshCw } from 'lucide-react';
+import { useStore } from '@/lib/FormgenStore';
+import { documentTitle, resolveDocument } from '@/lib/documentUtils';
 import FormPanel from './FormPanel';
 import PreviewPanel from './PreviewPanel';
 import DocumentTypeTabs from './DocumentTypeTabs';
-import DocumentSetSelector from './DocumentSetSelector';
-import {
-  createNewSet,
-  generateFromEstimate,
-  parseFormgenFile,
-  typeKeyOf,
-} from '@/lib/documentUtils';
+import Sidebar from './Sidebar';
+import FileStatusBar from './FileStatusBar';
+import WelcomeScreen from './WelcomeScreen';
+import ConflictDialog from './ConflictDialog';
+import IssuerSettingsDialog from './IssuerSettingsDialog';
 
-const defaultIssuer = {
-  companyName: '日本プロセス開発株式会社',
-  address1: '〒577-0034 大阪府東大阪市御厨南2-4-18',
-  address2: 'フィールドパーク2番館301号室',
-  tel: 'TEL: 090-1131-5277',
-  email: 'daiji.nagahara@j-p-d.co.jp',
-  registrationNumber: '登録番号: T3122001036512',
-  message: '平素は格別のご厚情を賜り、ありがたくお礼申し上げます。',
-  bankInfo: 'PayPay銀行(0033) ビジネス営業部(005) 普通6652172 ニホンプロセスカイハツ（カ\n※ 支払条件：月末締め翌月末払い\n※ 恐れ入りますが、振込手数料はお客様ご負担にてお願い申し上げます。',
-};
-
-function makeInitialSet(): DocumentSet {
-  const id = `set-${Date.now()}`;
-  const today = new Date();
-  const ymd = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
-  const prefix = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  const estimate: DocumentData = {
-    info: {
-      type: '見積書',
-      documentNumber: `${prefix}-001`,
-      referenceNumber: '',
-      date: ymd,
-      estimateNumber: '',
-      recipientName: '株式会社マツムラ　様',
-      subject: 'パイプ切断半自動機',
-      condition: '見積有効期限　2週間',
-    },
-    issuer: defaultIssuer,
-    items: [
-      { id: '1', code: 'ISTEC200', name: 'ISTEC200', quantity: 1, unit: '式', unitPrice: 862500, taxRate: 10 },
-      { id: '2', code: '', name: 'ISTEC200用専用刃（10枚組　1/4,3/8,1/2用）', quantity: 1, unit: '式', unitPrice: 47725, taxRate: 10 },
-    ],
-  };
-  return { id, estimate, invoice: null, delivery: null };
-}
+const MIN_SIDEBAR = 200;
+const MAX_SIDEBAR = 460;
 
 export default function DocumentEditor() {
-  const initialSet = useRef(makeInitialSet());
-  const [sets, setSets] = useState<DocumentSet[]>([initialSet.current]);
-  const [activeSetId, setActiveSetId] = useState<string>(initialSet.current.id);
-  const [activeType, setActiveType] = useState<DocumentType>('見積書');
-  const [isLoaded, setIsLoaded] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const store = useStore();
+  const { ui, connected, ready, activeProject } = store;
+
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [issuerOpen, setIssuerOpen] = useState(false);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
-  const [installPrompt, setInstallPrompt] = useState<Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
+
+  const resolved = resolveDocument(store.file, ui.activeClientId, ui.activeProjectId, ui.activeType);
 
   // PWAインストールプロンプト
   useEffect(() => {
-    const handler = (e: Event) => {
+    const onPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
-      setInstallPrompt(e as any);
+      setInstallPrompt(e);
     };
-    window.addEventListener('beforeinstallprompt', handler);
-    window.addEventListener('appinstalled', () => setInstallPrompt(null));
+    const onInstalled = () => setInstallPrompt(null);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
     return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
 
   const handleInstall = async () => {
     if (!installPrompt) return;
-    installPrompt.prompt();
+    await installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') setInstallPrompt(null);
   };
 
-  // プレビューのスケール計算
+  // プレビューのスケール計算（zoom を使うのは印刷時に等倍へ戻せるため）
   useEffect(() => {
     const container = previewContainerRef.current;
     if (!container) return;
@@ -93,226 +61,159 @@ export default function DocumentEditor() {
     ro.observe(container);
     update();
     return () => ro.disconnect();
-  }, []);
+  }, [connected]);
 
-  // 初回マウント: localStorage復元（v2 → v1フォールバック）
+  // ページタイトル（印刷時の既定ファイル名になる）
   useEffect(() => {
-    const tryLoad = (key: string): FormgenFileV2 | null => {
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
-      try {
-        return parseFormgenFile(JSON.parse(raw));
-      } catch {
-        return null;
+    document.title = documentTitle(resolved);
+  }, [resolved]);
+
+  // ⌘S で即保存
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        void store.saveNow();
       }
     };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [store]);
 
-    const v2 = tryLoad('formgen_v2_data') ?? tryLoad('formgen_saved_data');
-    if (v2) {
-      setSets(v2.sets);
-      setActiveSetId(v2.activeSetId);
-      setActiveType(v2.activeType);
-    } else {
-      const initial = makeInitialSet();
-      setSets([initial]);
-      setActiveSetId(initial.id);
-    }
-    setIsLoaded(true);
-  }, []);
+  const handlePrint = useCallback(() => window.print(), []);
 
-  // データ変更のたびにlocalStorage保存
-  useEffect(() => {
-    if (!isLoaded) return;
-    const file: FormgenFileV2 = { version: 2, activeSetId, activeType, sets };
-    localStorage.setItem('formgen_v2_data', JSON.stringify(file));
-  }, [sets, activeSetId, activeType, isLoaded]);
-
-  // 初回ロード後にactiveSetIdがまだ空なら先頭セットをセット
-  useEffect(() => {
-    if (isLoaded && !activeSetId && sets.length > 0) {
-      setActiveSetId(sets[0].id);
-    }
-  }, [isLoaded, activeSetId, sets]);
-
-  const activeSet = sets.find(s => s.id === activeSetId) ?? sets[0];
-  const activeData: DocumentData = activeSet
-    ? (activeSet[typeKeyOf(activeType)] ?? activeSet.estimate)
-    : sets[0].estimate;
-
-  // ページタイトル更新
-  useEffect(() => {
-    const recipient = activeData.info.recipientName.replace(/様/g, '').trim() || '名称未設定';
-    document.title = `${recipient}様_${activeData.info.documentNumber}`;
-  }, [activeData.info.recipientName, activeData.info.documentNumber]);
-
-  // FormPanelに渡す setData（アクティブスロットだけ更新）
-  const setActiveData = useCallback((updater: React.SetStateAction<DocumentData>) => {
-    setSets(prev => prev.map(set => {
-      if (set.id !== activeSetId) return set;
-      const key = typeKeyOf(activeType);
-      const current = set[key] ?? set.estimate;
-      const next = typeof updater === 'function' ? updater(current) : updater;
-      return { ...set, [key]: next };
-    }));
-  }, [activeSetId, activeType]);
-
-  // 帳票種別タブ切り替え
-  const handleTypeSwitch = useCallback((type: DocumentType) => {
-    if (type !== '見積書') {
-      setSets(prev => {
-        const set = prev.find(s => s.id === activeSetId);
-        if (!set) return prev;
-        const key = typeKeyOf(type);
-        const existing = set[key];
-        // 既存の場合も、見積書番号が空なら再生成（古いデータを更新）
-        if (existing && existing.info.estimateNumber) return prev;
-        const generated = generateFromEstimate(set.estimate, type as '請求書' | '納品書', prev);
-        return prev.map(s => s.id === activeSetId ? { ...s, [key]: generated } : s);
-      });
-    }
-    setActiveType(type); // 必ず setSets の外で呼ぶ（同一バッチで処理される）
-  }, [activeSetId]);
-
-  // セット切り替え
-  const handleSetSelect = (id: string) => {
-    setActiveSetId(id);
-    setActiveType('見積書');
-  };
-
-  // 新規セット追加
-  const handleAddSet = () => {
-    const newId = `set-${Date.now()}`;
-    setSets(prev => [...prev, createNewSet(activeSet?.estimate.issuer, prev, newId)]);
-    setActiveSetId(newId);
-    setActiveType('見積書');
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleSave = () => {
-    const file: FormgenFileV2 = { version: 2, activeSetId, activeType, sets };
-    const jsonString = JSON.stringify(file, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const recipient = activeSet.estimate.info.recipientName.replace(/様/g, '').trim() || '名称未設定';
-    a.href = url;
-    a.download = `${recipient}様_${activeSet.estimate.info.documentNumber}.formgen`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleOpen = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const parsed = parseFormgenFile(JSON.parse(ev.target?.result as string));
-        setSets(parsed.sets);
-        setActiveSetId(parsed.activeSetId);
-        setActiveType(parsed.activeType);
-      } catch {
-        alert('ファイルの読み込みに失敗しました。対応していないファイル形式です。');
-      }
+  // サイドバーの幅ドラッグ
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = ui.sidebarWidth;
+    const onMove = (ev: MouseEvent) => {
+      const next = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, startWidth + ev.clientX - startX));
+      store.patchUi({ sidebarWidth: next });
     };
-    reader.readAsText(file);
-    e.target.value = '';
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
 
-  // Launch Queue (PWA File Handling API)
-  useEffect(() => {
-    if ('launchQueue' in window) {
-      (window as any).launchQueue.setConsumer(async (launchParams: any) => {
-        if (!launchParams.files.length) return;
-        const fileHandle = launchParams.files[0];
-        const file = await fileHandle.getFile();
-        const text = await file.text();
-        try {
-          const parsed = parseFormgenFile(JSON.parse(text));
-          setSets(parsed.sets);
-          setActiveSetId(parsed.activeSetId);
-          setActiveType(parsed.activeType);
-        } catch {
-          alert('ファイルの読み込みに失敗しました。');
-        }
-      });
-    }
-  }, []);
+  if (!ready) {
+    return <div className="flex h-screen items-center justify-center text-sm text-gray-400">読み込み中…</div>;
+  }
 
   return (
-    <div className="flex h-screen w-full flex-col bg-neutral-100 overflow-hidden font-sans text-slate-800">
-
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-neutral-100 font-sans text-slate-800">
       {/* ツールバー */}
-      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm z-20 print:hidden">
-        <h1 className="font-bold text-lg text-gray-800 shrink-0">帳票作成ソフト</h1>
-        <div className="flex items-center gap-3 mx-4 flex-1 justify-center">
-          <DocumentSetSelector
-            sets={sets}
-            activeSetId={activeSetId || sets[0]?.id || ''}
-            onSelect={handleSetSelect}
-            onAddSet={handleAddSet}
-          />
+      <div className="z-20 flex items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5 shadow-sm print:hidden">
+        <div className="flex shrink-0 items-center gap-2">
+          {connected && (
+            <button
+              onClick={() => store.patchUi({ sidebarCollapsed: !ui.sidebarCollapsed })}
+              aria-label={ui.sidebarCollapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
+              className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+            >
+              {ui.sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
+          )}
+          <h1 className="text-lg font-bold text-gray-800">帳票作成ソフト</h1>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <input
-            type="file"
-            accept=".formgen"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleOpen}
-          />
+
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+          <FileStatusBar />
+          {store.needsReconnect && (
+            <button
+              onClick={() => void store.reconnect()}
+              className="flex shrink-0 items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
+              <RefreshCw size={14} /> 再接続
+            </button>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
           {installPrompt && (
             <button
               onClick={handleInstall}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition"
+              className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
             >
               <MonitorDown size={16} /> インストール
             </button>
           )}
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition"
+            onClick={() => setIssuerOpen(true)}
+            className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-200"
           >
-            <FolderOpen size={16} /> 開く
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition"
-          >
-            <Download size={16} /> 保存
+            <Building2 size={16} /> 自社情報
           </button>
         </div>
       </div>
 
-      <div className="flex flex-1 h-full overflow-hidden">
-        {/* 左側：入力フォーム */}
-        <div className="w-1/3 min-w-[400px] h-full overflow-y-auto border-r border-neutral-300 bg-white p-6 shadow-xl z-10 print:hidden">
-          <FormPanel data={activeData} setData={setActiveData} onPrint={handlePrint}>
-            <DocumentTypeTabs
-              activeType={activeType}
-              hasInvoice={!!activeSet?.invoice}
-              hasDelivery={!!activeSet?.delivery}
-              onSwitch={handleTypeSwitch}
-            />
-          </FormPanel>
-        </div>
+      {connected ? (
+        <div className="flex h-full flex-1 overflow-hidden">
+          {/* 左: 取引先 → 案件 ツリー */}
+          {!ui.sidebarCollapsed && (
+            <>
+              <div style={{ width: ui.sidebarWidth }} className="h-full shrink-0 print:hidden">
+                <Sidebar />
+              </div>
+              <div
+                onMouseDown={startResize}
+                className="w-1 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-blue-400 print:hidden"
+              />
+            </>
+          )}
 
-        {/* 右側：プレビュー */}
-        <div
-          ref={previewContainerRef}
-          className="flex-1 h-full overflow-y-auto bg-neutral-200 p-8 flex justify-center items-start print:p-0 print:bg-white print:overflow-visible"
-        >
+          {/* 中央: 入力フォーム */}
+          <div className="z-10 h-full w-1/3 min-w-[380px] max-w-[520px] shrink-0 overflow-y-auto border-r border-neutral-300 bg-white p-6 shadow-xl print:hidden">
+            {activeProject && resolved ? (
+              <FormPanel doc={resolved.doc} type={ui.activeType} onPrint={handlePrint}>
+                <DocumentTypeTabs project={activeProject} />
+              </FormPanel>
+            ) : activeProject ? (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold text-gray-800">{activeProject.name || '（無題の案件）'}</h2>
+                <p className="text-sm text-gray-500">この案件にはまだ帳票がありません。</p>
+                <DocumentTypeTabs project={activeProject} />
+              </div>
+            ) : (
+              <EmptyState hasClients={store.file.clients.length > 0} />
+            )}
+          </div>
+
+          {/* 右: プレビュー */}
           <div
-            className="preview-zoom-wrapper"
-            style={{ zoom: previewScale }}
+            ref={previewContainerRef}
+            className="flex h-full flex-1 justify-center overflow-y-auto bg-neutral-200 p-8 print:overflow-visible print:bg-white print:p-0"
           >
-            <PreviewPanel data={activeData} />
+            {resolved ? (
+              <div className="preview-zoom-wrapper" style={{ zoom: previewScale }}>
+                <PreviewPanel data={resolved} />
+              </div>
+            ) : (
+              <p className="mt-24 text-sm text-gray-400 print:hidden">案件を選ぶとプレビューが表示されます</p>
+            )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          <WelcomeScreen />
+        </div>
+      )}
+
+      <ConflictDialog />
+      {issuerOpen && <IssuerSettingsDialog onClose={() => setIssuerOpen(false)} />}
+    </div>
+  );
+}
+
+function EmptyState({ hasClients }: { hasClients: boolean }) {
+  return (
+    <div className="mt-16 text-center">
+      <p className="text-sm text-gray-500">
+        {hasClients ? '左のツリーから案件を選んでください。' : '左下の「取引先を追加」から始めてください。'}
+      </p>
     </div>
   );
 }

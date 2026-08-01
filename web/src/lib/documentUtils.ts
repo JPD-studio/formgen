@@ -1,5 +1,14 @@
 import { format } from 'date-fns';
-import { DocumentData, DocumentSet, DocumentType, FormgenFileV2, IssuerInfo } from '@/types';
+import {
+  Client,
+  DocumentEntry,
+  DocumentType,
+  DOCUMENT_TYPES,
+  FormgenFileV3,
+  Project,
+  ResolvedDocument,
+} from '@/types';
+import { newId } from './formgenFile';
 
 export function todayFormatted(): string {
   const d = new Date();
@@ -10,111 +19,121 @@ function datePrefix(date: Date = new Date()): string {
   return format(date, 'yyyyMMdd');
 }
 
-export function nextDocumentNumber(sets: DocumentSet[], date: Date = new Date()): string {
+/** ファイル全体を走査して YYYYMMDD-NNN の次番を返す */
+export function nextDocumentNumber(file: FormgenFileV3, date: Date = new Date()): string {
   const prefix = datePrefix(date);
   let max = 0;
-  for (const set of sets) {
-    for (const doc of [set.estimate, set.invoice, set.delivery]) {
-      if (!doc) continue;
-      const match = doc.info.documentNumber.match(/^(\d{8})-(\d+)$/);
-      if (match && match[1] === prefix) {
-        max = Math.max(max, parseInt(match[2], 10));
+  for (const client of file.clients) {
+    for (const project of client.projects) {
+      for (const type of DOCUMENT_TYPES) {
+        const doc = project.documents[type];
+        if (!doc) continue;
+        const match = doc.documentNumber.match(/^(\d{8})-(\d+)$/);
+        if (match && match[1] === prefix) {
+          max = Math.max(max, parseInt(match[2], 10));
+        }
       }
     }
   }
   return `${prefix}-${String(max + 1).padStart(3, '0')}`;
 }
 
-export function generateFromEstimate(
-  estimate: DocumentData,
-  targetType: '請求書' | '納品書',
-  sets: DocumentSet[]
-): DocumentData {
-  const today = new Date();
+/**
+ * 連番を続けて払い出す。案件の複製のように、1回のファイル更新で
+ * 複数の帳票番号が要るときに使う（毎回 nextDocumentNumber を呼ぶと同じ番号になる）。
+ */
+export function documentNumberIssuer(file: FormgenFileV3, date: Date = new Date()): () => string {
+  const [prefix, seq] = nextDocumentNumber(file, date).split('-');
+  let next = parseInt(seq, 10);
+  return () => `${prefix}-${String(next++).padStart(3, '0')}`;
+}
+
+export function emptyDocument(file: FormgenFileV3, type: DocumentType): DocumentEntry {
   return {
-    ...estimate,
-    items: estimate.items.map(item => ({ ...item })), // ディープコピー
-    info: {
-      ...estimate.info,
-      type: targetType,
-      date: todayFormatted(),
-      documentNumber: nextDocumentNumber(sets, today),
-      estimateNumber: estimate.info.documentNumber,
-      condition: targetType === '請求書' ? '月末締め翌月末払い' : '',
-    },
-  };
-}
-
-export function typeKeyOf(type: DocumentType): 'estimate' | 'invoice' | 'delivery' {
-  if (type === '見積書') return 'estimate';
-  if (type === '請求書') return 'invoice';
-  return 'delivery';
-}
-
-const defaultIssuer: IssuerInfo = {
-  companyName: '',
-  address1: '',
-  address2: '',
-  tel: '',
-  email: '',
-  registrationNumber: '',
-  bankInfo: '',
-  message: '',
-};
-
-export function createNewSet(
-  existingIssuer?: IssuerInfo,
-  existingSets: DocumentSet[] = [],
-  id?: string
-): DocumentSet {
-  const setId = id ?? `set-${Date.now()}`;
-  const today = new Date();
-  const estimate: DocumentData = {
-    info: {
-      type: '見積書',
-      documentNumber: nextDocumentNumber(existingSets, today),
-      referenceNumber: '',
-      date: todayFormatted(),
-      estimateNumber: '',
-      recipientName: '',
-      subject: '',
-      condition: '見積有効期限　2週間',
-    },
-    issuer: existingIssuer ?? defaultIssuer,
+    documentNumber: nextDocumentNumber(file),
+    date: todayFormatted(),
+    referenceNumber: '',
+    estimateNumber: '',
+    condition: type === '見積書' ? '見積有効期限　2週間' : type === '請求書' ? '月末締め翌月末払い' : '',
     items: [],
   };
-  return { id: setId, estimate, invoice: null, delivery: null };
 }
 
-export function parseFormgenFile(json: unknown): FormgenFileV2 {
-  if (typeof json !== 'object' || json === null) throw new Error('Invalid file');
-
-  // v2
-  if ('version' in json && (json as Record<string, unknown>).version === 2) {
-    return json as FormgenFileV2;
-  }
-
-  // v1 (旧フォーマット: DocumentData単体)
-  const v1 = json as DocumentData & { info?: { type?: DocumentType } };
-  const setId = `set-${Date.now()}`;
-  const docType: DocumentType = v1.info?.type ?? '見積書';
-
-  const doc: DocumentData = {
-    ...v1,
-    info: { ...v1.info, estimateNumber: '' } as DocumentData['info'],
-  };
-
-  const set: DocumentSet = {
-    id: setId,
-    estimate: docType === '見積書' ? doc : { ...doc, info: { ...doc.info, type: '見積書', estimateNumber: '' } },
-    invoice: docType === '請求書' ? doc : null,
-    delivery: docType === '納品書' ? doc : null,
-  };
-
+/** 見積書から請求書・納品書を生成する */
+export function generateFromEstimate(
+  estimate: DocumentEntry,
+  targetType: '請求書' | '納品書',
+  file: FormgenFileV3
+): DocumentEntry {
   return {
-    version: 2,
-    activeSetId: setId,
-    activeType: docType,
-    sets: [set],
+    ...estimate,
+    items: estimate.items.map(item => ({ ...item, id: newId('i') })),
+    date: todayFormatted(),
+    documentNumber: nextDocumentNumber(file),
+    estimateNumber: estimate.documentNumber,
+    condition: targetType === '請求書' ? '月末締め翌月末払い' : '',
   };
+}
+
+export function newProject(file: FormgenFileV3, name = ''): Project {
+  return {
+    id: newId('p'),
+    name,
+    documents: { 見積書: emptyDocument(file, '見積書') },
+  };
+}
+
+export function newClient(name = ''): Client {
+  return { id: newId('c'), name, honorific: '様', projects: [] };
+}
+
+export function findClient(file: FormgenFileV3, clientId: string | null): Client | undefined {
+  if (!clientId) return undefined;
+  return file.clients.find(c => c.id === clientId);
+}
+
+export function findProject(
+  file: FormgenFileV3,
+  clientId: string | null,
+  projectId: string | null
+): Project | undefined {
+  if (!projectId) return undefined;
+  return findClient(file, clientId)?.projects.find(p => p.id === projectId);
+}
+
+export function recipientNameOf(client: Client): string {
+  return client.honorific ? `${client.name}　${client.honorific}` : client.name;
+}
+
+/**
+ * issuer + 宛名 + 件名 + 帳票本体を合成して、描画用の平坦な形にする。
+ * PreviewPanel / FormPanel はこの形だけを見る。
+ */
+export function resolveDocument(
+  file: FormgenFileV3,
+  clientId: string | null,
+  projectId: string | null,
+  type: DocumentType
+): ResolvedDocument | null {
+  const client = findClient(file, clientId);
+  const project = findProject(file, clientId, projectId);
+  if (!client || !project) return null;
+  const doc = project.documents[type];
+  if (!doc) return null;
+  return {
+    type,
+    clientName: client.name,
+    honorific: client.honorific,
+    recipientName: recipientNameOf(client),
+    subject: project.name,
+    issuer: file.issuer,
+    doc,
+  };
+}
+
+/** 印刷時のファイル名・タブタイトル用 */
+export function documentTitle(resolved: ResolvedDocument | null): string {
+  if (!resolved) return '帳票作成ソフト';
+  const name = resolved.recipientName.trim() || '名称未設定';
+  return `${name}_${resolved.doc.documentNumber}`.replace(/[\s　]+/g, '');
 }

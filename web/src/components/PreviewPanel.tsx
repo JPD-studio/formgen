@@ -1,38 +1,35 @@
 import React from 'react';
-import { DocumentData } from '@/types';
+import { ResolvedDocument } from '@/types';
 
 interface PreviewPanelProps {
-  data: DocumentData;
+  data: ResolvedDocument;
 }
 
 export default function PreviewPanel({ data }: PreviewPanelProps) {
-  const { info, issuer, items } = data;
+  const { type, clientName, honorific, subject, issuer, doc } = data;
+  const items = doc.items;
 
-  // 計算ロジック
+  // 税率ごとに集計する（インボイスの内訳表がこれを使う）
   const calculateTotals = () => {
-    let subtotal = 0;
-    let tax10 = 0;
-    let tax8 = 0;
+    const base = { 10: 0, 8: 0, 0: 0 } as Record<number, number>;
 
     items.forEach(item => {
       const amount = item.quantity * item.unitPrice;
-      subtotal += amount;
-      if (item.taxRate === 10) tax10 += amount * 0.1;
-      if (item.taxRate === 8) tax8 += amount * 0.08;
+      base[item.taxRate] = (base[item.taxRate] ?? 0) + amount;
     });
 
+    const subtotal = base[10] + base[8] + base[0];
+    const tax10 = Math.floor(base[10] * 0.1);
+    const tax8 = Math.floor(base[8] * 0.08);
     const totalTax = tax10 + tax8;
-    const total = subtotal + totalTax;
 
-    return { subtotal, tax10, tax8, totalTax, total };
+    return { subtotal, base10: base[10], base8: base[8], base0: base[0], tax10, tax8, totalTax, total: subtotal + totalTax };
   };
 
   const totals = calculateTotals();
 
-  // 金額フォーマット
-  const formatCurrency = (num: number) => {
-    return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(num);
-  };
+  const formatCurrency = (num: number) =>
+    new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(num).replace('￥', '¥');
 
   return (
     // A4サイズアスペクト比 (210x297mm)
@@ -43,40 +40,40 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
         <div className="w-1/2"></div>
         <div className="text-right text-[9pt] space-y-1">
           <p>1 / 1</p>
-          <p>{info.date}</p>
-          <p>{info.type === '見積書' ? '見積番号' : info.type === '請求書' ? '請求番号' : '納品書番号'}: {info.documentNumber}</p>
+          <p>{doc.date}</p>
+          <p>{type === '見積書' ? '見積番号' : type === '請求書' ? '請求番号' : '納品書番号'}: {doc.documentNumber}</p>
         </div>
       </div>
 
       {/* タイトル */}
       <div className="text-center mb-4">
-        <h1 className="text-3xl font-bold tracking-widest">{info.type}</h1>
+        <h1 className="text-3xl font-bold tracking-widest">{type}</h1>
       </div>
 
       {/* 宛先と発行者 */}
       <div className="flex justify-between mb-4">
         <div className="w-[50%] pr-4 space-y-4">
           <div className="border-b border-black pb-1 mb-2 text-[11pt] flex items-end justify-between gap-2">
-            <span>{info.recipientName.replace(/様\s*$/, '')}</span>
-            <span className="shrink-0">様</span>
+            <span>{clientName}</span>
+            <span className="shrink-0">{honorific}</span>
           </div>
-          <p>件名 : {info.subject}</p>
+          <p>件名 : {subject}</p>
 
           <div className="mt-2 text-[13pt] border-b-2 border-black pb-1 inline-block min-w-[80%] whitespace-nowrap">
-            {info.type === '見積書' ? '御見積金額' : 'ご請求金額'}　{formatCurrency(totals.total)}({info.type === '見積書' ? '外税' : '内税'})
+            {type === '見積書' ? '御見積金額' : 'ご請求金額'}　{formatCurrency(totals.total)}({type === '見積書' ? '外税' : '内税'})
           </div>
-          
-          {info.condition && (
+
+          {doc.condition && (
             <p className="mt-2 text-[10pt]">
-              {info.type === '見積書' ? '見積有効期限' : '支払条件'}： {info.condition}
+              {type === '見積書' ? '見積有効期限' : '支払条件'}： {doc.condition}
             </p>
           )}
 
-          {info.referenceNumber && (
-            <p className="text-[9pt] mt-1">ご発注書番号: {info.referenceNumber}</p>
+          {doc.referenceNumber && (
+            <p className="text-[9pt] mt-1">ご発注書番号: {doc.referenceNumber}</p>
           )}
-          {info.estimateNumber && (
-            <p className="text-[9pt] mt-1">見積書番号: {info.estimateNumber}</p>
+          {doc.estimateNumber && (
+            <p className="text-[9pt] mt-1">見積書番号: {doc.estimateNumber}</p>
           )}
         </div>
 
@@ -104,16 +101,19 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
           </tr>
         </thead>
         <tbody>
-          {items.map((item, idx) => (
-            <tr key={item.id || idx}>
+          {items.map(item => (
+            <tr key={item.id}>
               <td className="border border-black py-1 px-2">
                 {item.code && <div className="text-[8pt] text-gray-600">{item.code}</div>}
-                <div>{item.name}</div>
+                <div>
+                  {item.name}
+                  {item.taxRate === 8 && <span className="text-[8pt]"> ※</span>}
+                </div>
               </td>
               <td className="border border-black py-1 px-2 text-center">{item.quantity}</td>
               <td className="border border-black py-1 px-2 text-center">{item.unit}</td>
-              <td className="border border-black py-1 px-2 text-right">{formatCurrency(item.unitPrice).replace('￥', '¥')}</td>
-              <td className="border border-black py-1 px-2 text-right">{formatCurrency(item.quantity * item.unitPrice).replace('￥', '¥')}</td>
+              <td className="border border-black py-1 px-2 text-right">{formatCurrency(item.unitPrice)}</td>
+              <td className="border border-black py-1 px-2 text-right">{formatCurrency(item.quantity * item.unitPrice)}</td>
             </tr>
           ))}
           {/* 余白行 */}
@@ -134,15 +134,15 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
             <tbody>
               <tr>
                 <td className="border border-black py-1 px-2 bg-gray-100">小計</td>
-                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.subtotal).replace('￥', '¥')}</td>
+                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.subtotal)}</td>
               </tr>
               <tr>
                 <td className="border border-black py-1 px-2 bg-gray-100">消費税</td>
-                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.totalTax).replace('￥', '¥')}</td>
+                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.totalTax)}</td>
               </tr>
               <tr>
                 <td className="border border-black py-1 px-2 bg-gray-100">合計</td>
-                <td className="border border-black py-1 px-2 text-right font-bold">{formatCurrency(totals.total).replace('￥', '¥')}</td>
+                <td className="border border-black py-1 px-2 text-right font-bold">{formatCurrency(totals.total)}</td>
               </tr>
             </tbody>
           </table>
@@ -156,24 +156,25 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
             <tbody>
               <tr>
                 <td className="border border-black py-1 px-2 text-center bg-gray-100">10%対象</td>
-                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.subtotal).replace('￥', '¥')}</td>
+                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.base10)}</td>
                 <td className="border border-black py-1 px-2 text-center bg-gray-100">消費税</td>
-                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.tax10).replace('￥', '¥')}</td>
+                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.tax10)}</td>
               </tr>
               <tr>
-                <td className="border border-black py-1 px-2 text-center bg-gray-100">8％対象</td>
-                <td className="border border-black py-1 px-2 text-right">¥0</td>
+                <td className="border border-black py-1 px-2 text-center bg-gray-100">8％対象 ※</td>
+                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.base8)}</td>
                 <td className="border border-black py-1 px-2 text-center bg-gray-100">消費税</td>
-                <td className="border border-black py-1 px-2 text-right">¥0</td>
+                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.tax8)}</td>
               </tr>
               <tr>
                 <td className="border border-black py-1 px-2 text-center bg-gray-100">対象外</td>
-                <td className="border border-black py-1 px-2 text-right">¥0</td>
+                <td className="border border-black py-1 px-2 text-right">{formatCurrency(totals.base0)}</td>
                 <td className="border border-black py-1 px-2 text-center bg-gray-100">消費税</td>
-                <td className="border border-black py-1 px-2 text-right">¥0</td>
+                <td className="border border-black py-1 px-2 text-right">{formatCurrency(0)}</td>
               </tr>
             </tbody>
           </table>
+          {totals.base8 > 0 && <p className="mt-1 text-[8pt]">※ は軽減税率(8%)対象</p>}
         </div>
       </div>
 

@@ -1,66 +1,53 @@
+'use client';
+
 import React from 'react';
-import { DocumentData, LineItem } from '@/types';
-import { Printer, Plus, Trash2 } from 'lucide-react';
+import { Plus, Printer, Trash2 } from 'lucide-react';
+import { DocumentEntry, DocumentType, LineItem, TaxRate } from '@/types';
+import { useStore } from '@/lib/FormgenStore';
+import { newId } from '@/lib/formgenFile';
 
 interface FormPanelProps {
-  data: DocumentData;
-  setData: React.Dispatch<React.SetStateAction<DocumentData>>;
+  doc: DocumentEntry;
+  type: DocumentType;
   onPrint: () => void;
-  children?: React.ReactNode; // DocumentTypeTabsを受け取るスロット
+  children?: React.ReactNode; // DocumentTypeTabs を受け取るスロット
 }
 
-export default function FormPanel({ data, setData, onPrint, children }: FormPanelProps) {
-  const handleInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setData(prev => ({
-      ...prev,
-      info: { ...prev.info, [name]: value }
-    }));
-  };
+export default function FormPanel({ doc, type, onPrint, children }: FormPanelProps) {
+  const store = useStore();
+  const { activeClient, activeProject } = store;
 
-  const handleIssuerChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setData(prev => ({
-      ...prev,
-      issuer: { ...prev.issuer, [name]: value }
-    }));
-  };
-
-  const handleItemChange = (id: string, field: keyof LineItem, value: any) => {
-    setData(prev => ({
-      ...prev,
-      items: prev.items.map(item => item.id === id ? { ...item, [field]: value } : item)
-    }));
+  const patchItem = (id: string, field: keyof LineItem, value: string | number) => {
+    store.updateItems(items => items.map(item => (item.id === id ? { ...item, [field]: value } : item)));
   };
 
   const addItem = () => {
-    const newItem: LineItem = {
-      id: Date.now().toString(),
-      code: '',
-      name: '',
-      quantity: 1,
-      unit: '式',
-      unitPrice: 0,
-      taxRate: 10
-    };
-    setData(prev => ({ ...prev, items: [...prev.items, newItem] }));
+    store.updateItems(items => [
+      ...items,
+      { id: newId('i'), code: '', name: '', quantity: 1, unit: '式', unitPrice: 0, taxRate: 10 },
+    ]);
   };
 
   const removeItem = (id: string) => {
-    setData(prev => ({
-      ...prev,
-      items: prev.items.filter(item => item.id !== id)
-    }));
+    store.updateItems(items => items.filter(item => item.id !== id));
   };
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 py-2 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800">帳票入力</h2>
+      {/* ヘッダー: 取引先 / 案件 + タブ + 印刷 */}
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 py-2 backdrop-blur-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-xs text-gray-500" title={activeClient?.name}>
+              {activeClient?.name || '取引先未設定'}　{activeClient?.honorific}
+            </p>
+            <h2 className="truncate text-lg font-bold text-gray-800" title={activeProject?.name}>
+              {activeProject?.name || '（無題の案件）'}
+            </h2>
+          </div>
           <button
             onClick={onPrint}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm"
+            className="flex shrink-0 items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white shadow-sm transition-colors hover:bg-blue-700"
           >
             <Printer size={18} />
             印刷・PDF化
@@ -71,107 +58,156 @@ export default function FormPanel({ data, setData, onPrint, children }: FormPane
 
       {/* 基本情報 */}
       <section className="space-y-4">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">基本情報</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">基本情報</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">文書番号</label>
-            <input type="text" name="documentNumber" value={data.info.documentNumber} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" />
+            <label className="mb-1 block text-xs text-gray-500">文書番号</label>
+            <input
+              type="text"
+              value={doc.documentNumber}
+              onChange={e => store.updateDocument({ documentNumber: e.target.value })}
+              className="w-full rounded-md border border-gray-300 p-2"
+            />
           </div>
-          {data.info.type !== '見積書' && (
+          {type !== '見積書' && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">見積書番号</label>
-              <input type="text" name="estimateNumber" value={data.info.estimateNumber} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" placeholder="例: 20260617-001" />
+              <label className="mb-1 block text-xs text-gray-500">見積書番号</label>
+              <input
+                type="text"
+                value={doc.estimateNumber}
+                onChange={e => store.updateDocument({ estimateNumber: e.target.value })}
+                placeholder="例: 20260617-001"
+                className="w-full rounded-md border border-gray-300 p-2"
+              />
             </div>
           )}
-          <div className={data.info.type !== '見積書' ? 'col-span-2' : ''}>
-            <label className="block text-xs text-gray-500 mb-1">日付</label>
-            <input type="text" name="date" value={data.info.date} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" placeholder="例: 2026年6月17日" />
+          <div className={type !== '見積書' ? 'col-span-2' : ''}>
+            <label className="mb-1 block text-xs text-gray-500">日付</label>
+            <input
+              type="text"
+              value={doc.date}
+              onChange={e => store.updateDocument({ date: e.target.value })}
+              placeholder="例: 2026年6月17日"
+              className="w-full rounded-md border border-gray-300 p-2"
+            />
           </div>
           <div className="col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">宛先 (敬称含め)</label>
-            <input type="text" name="recipientName" value={data.info.recipientName} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" />
+            <label className="mb-1 block text-xs text-gray-500">ご発注書番号（任意）</label>
+            <input
+              type="text"
+              value={doc.referenceNumber}
+              onChange={e => store.updateDocument({ referenceNumber: e.target.value })}
+              className="w-full rounded-md border border-gray-300 p-2"
+            />
           </div>
           <div className="col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">件名</label>
-            <input type="text" name="subject" value={data.info.subject} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">有効期限 / 支払条件</label>
-            <input type="text" name="condition" value={data.info.condition} onChange={handleInfoChange} className="w-full p-2 border border-gray-300 rounded-md" />
+            <label className="mb-1 block text-xs text-gray-500">有効期限 / 支払条件</label>
+            <input
+              type="text"
+              value={doc.condition}
+              onChange={e => store.updateDocument({ condition: e.target.value })}
+              className="w-full rounded-md border border-gray-300 p-2"
+            />
           </div>
         </div>
+        <p className="text-xs text-gray-400">
+          宛先と件名は、左のツリーの取引先名・案件名がそのまま使われます。
+        </p>
       </section>
 
-      {/* 明細情報 */}
+      {/* 明細行 */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">明細行</h3>
-          <button onClick={addItem} className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-800">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">明細行</h3>
+          <button onClick={addItem} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
             <Plus size={14} /> 追加
           </button>
         </div>
-        
+
         <div className="space-y-3">
-          {data.items.map((item, index) => (
-            <div key={item.id} className="p-3 border border-gray-200 rounded-md bg-gray-50 relative group">
-              <button 
+          {doc.items.length === 0 && (
+            <p className="rounded-md border border-dashed border-gray-300 py-6 text-center text-xs text-gray-400">
+              明細行がありません
+            </p>
+          )}
+          {doc.items.map(item => (
+            <div key={item.id} className="group relative rounded-md border border-gray-200 bg-gray-50 p-3">
+              <button
                 onClick={() => removeItem(item.id)}
-                className="absolute top-2 right-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label="この行を削除"
+                className="absolute right-2 top-2 text-gray-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
               >
                 <Trash2 size={16} />
               </button>
-              
+
               <div className="grid grid-cols-12 gap-2 pr-6">
                 <div className="col-span-12">
-                  <input type="text" placeholder="品名" value={item.name} onChange={(e) => handleItemChange(item.id, 'name', e.target.value)} className="w-full p-1.5 text-sm border border-gray-300 rounded" />
+                  <input
+                    type="text"
+                    placeholder="品名"
+                    value={item.name}
+                    onChange={e => patchItem(item.id, 'name', e.target.value)}
+                    className="w-full rounded border border-gray-300 p-1.5 text-sm"
+                  />
                 </div>
                 <div className="col-span-4">
-                  <input type="text" placeholder="品番(任意)" value={item.code} onChange={(e) => handleItemChange(item.id, 'code', e.target.value)} className="w-full p-1.5 text-sm border border-gray-300 rounded text-xs" />
+                  <input
+                    type="text"
+                    placeholder="品番(任意)"
+                    value={item.code}
+                    onChange={e => patchItem(item.id, 'code', e.target.value)}
+                    className="w-full rounded border border-gray-300 p-1.5 text-xs"
+                  />
                 </div>
                 <div className="col-span-2">
-                  <input type="number" inputMode="numeric" placeholder="数量" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-full p-1.5 text-sm border border-gray-300 rounded" />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="数量"
+                    value={item.quantity}
+                    onChange={e => patchItem(item.id, 'quantity', Number(e.target.value))}
+                    className="w-full rounded border border-gray-300 p-1.5 text-sm"
+                  />
                 </div>
                 <div className="col-span-2">
-                  <input type="text" placeholder="単位" value={item.unit} onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)} className="w-full p-1.5 text-sm border border-gray-300 rounded text-center" />
+                  <input
+                    type="text"
+                    placeholder="単位"
+                    value={item.unit}
+                    onChange={e => patchItem(item.id, 'unit', e.target.value)}
+                    className="w-full rounded border border-gray-300 p-1.5 text-center text-sm"
+                  />
                 </div>
                 <div className="col-span-4">
-                  <input type="number" inputMode="numeric" placeholder="単価" value={item.unitPrice} onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))} className="w-full p-1.5 text-sm border border-gray-300 rounded text-right" />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="単価"
+                    value={item.unitPrice}
+                    onChange={e => patchItem(item.id, 'unitPrice', Number(e.target.value))}
+                    className="w-full rounded border border-gray-300 p-1.5 text-right text-sm"
+                  />
+                </div>
+                <div className="col-span-4 flex items-center gap-2">
+                  <label className="text-xs text-gray-500">税率</label>
+                  <select
+                    value={item.taxRate}
+                    onChange={e => patchItem(item.id, 'taxRate', Number(e.target.value) as TaxRate)}
+                    className="flex-1 rounded border border-gray-300 p-1.5 text-sm"
+                  >
+                    <option value={10}>10%</option>
+                    <option value={8}>8%（軽減）</option>
+                    <option value={0}>対象外</option>
+                  </select>
+                </div>
+                <div className="col-span-8 flex items-center justify-end text-sm text-gray-500 tabular-nums">
+                  小計 ¥{(item.quantity * item.unitPrice).toLocaleString('ja-JP')}
                 </div>
               </div>
             </div>
           ))}
         </div>
       </section>
-
-      {/* 発行者情報 */}
-      <section className="space-y-4 pt-4 border-t border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">自社情報・備考</h3>
-        <div className="grid grid-cols-1 gap-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">会社名</label>
-            <input type="text" name="companyName" value={data.issuer.companyName} onChange={handleIssuerChange} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">住所</label>
-            <input type="text" name="address1" value={data.issuer.address1} onChange={handleIssuerChange} className="w-full p-2 border border-gray-300 rounded-md text-sm mb-2" />
-            <input type="text" name="address2" value={data.issuer.address2} onChange={handleIssuerChange} className="w-full p-2 border border-gray-300 rounded-md text-sm" placeholder="ビル名など" />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">連絡先</label>
-            <input type="text" name="tel" value={data.issuer.tel} onChange={handleIssuerChange} className="w-full p-2 border border-gray-300 rounded-md text-sm mb-2" />
-            <input type="text" name="email" value={data.issuer.email} onChange={handleIssuerChange} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">登録番号(インボイス)</label>
-            <input type="text" name="registrationNumber" value={data.issuer.registrationNumber} onChange={handleIssuerChange} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">備考・振込先等</label>
-            <textarea name="bankInfo" value={data.issuer.bankInfo} onChange={handleIssuerChange} rows={4} className="w-full p-2 border border-gray-300 rounded-md text-sm resize-y" />
-          </div>
-        </div>
-      </section>
-      
     </div>
   );
 }
