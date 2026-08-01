@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "帳票作成ソフト",
   description: "見積書・請求書・納品書の作成ソフト",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
