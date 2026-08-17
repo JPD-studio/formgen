@@ -30,3 +30,15 @@ body {
     zoom: 1 !important;
   }
 }
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  .print-page-break {
+    break-after: page;
+    page-break-after: always;
+  }
+}

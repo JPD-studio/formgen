@@ -55,6 +55,7 @@ export function emptyDocument(file: FormgenFileV3, type: DocumentType): Document
     referenceNumber: '',
     estimateNumber: '',
     condition: type === '見積書' ? '見積有効期限　2週間' : type === '請求書' ? '月末締め翌月末払い' : '',
+    notes: '',
     items: [],
   };
 }
@@ -72,6 +73,7 @@ export function generateFromEstimate(
     documentNumber: nextDocumentNumber(file),
     estimateNumber: estimate.documentNumber,
     condition: targetType === '請求書' ? '月末締め翌月末払い' : '',
+    notes: '',
   };
 }
 

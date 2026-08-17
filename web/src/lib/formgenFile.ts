@@ -104,6 +104,7 @@ function parseDocument(raw: unknown): DocumentEntry {
     referenceNumber: str(o.referenceNumber),
     estimateNumber: str(o.estimateNumber),
     condition: str(o.condition),
+    notes: str(o.notes),
     items: arr(o.items).map(parseItem),
   };
 }
@@ -197,6 +198,7 @@ function legacyDocToEntry(d: LegacyDocumentData): DocumentEntry {
     referenceNumber: str(info.referenceNumber),
     estimateNumber: str(info.estimateNumber),
     condition: str(info.condition),
+    notes: '',
     items: arr(d.items).map(parseItem),
   };
 }
@@ -314,6 +316,7 @@ function toPlain(file: FormgenFileV3): Record<string, unknown> {
           if (d.referenceNumber) entry.referenceNumber = d.referenceNumber;
           if (d.estimateNumber) entry.estimateNumber = d.estimateNumber;
           if (d.condition) entry.condition = d.condition;
+          if (d.notes) entry.notes = d.notes;
           entry.items = d.items.map(item => {
             const out: Record<string, unknown> = {};
             if (item.code) out.code = item.code;

@@ -15,6 +15,8 @@ import IssuerSettingsDialog from './IssuerSettingsDialog';
 
 const MIN_SIDEBAR = 200;
 const MAX_SIDEBAR = 460;
+const MIN_FORM_PANEL = 380;
+const MAX_FORM_PANEL = 760;
 
 export default function DocumentEditor() {
   const store = useStore();
@@ -99,12 +101,29 @@ export default function DocumentEditor() {
     window.addEventListener('mouseup', onUp);
   };
 
+  // 入力フォーム幅ドラッグ
+  const startFormPanelResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = ui.formPanelWidth;
+    const onMove = (ev: MouseEvent) => {
+      const next = Math.min(MAX_FORM_PANEL, Math.max(MIN_FORM_PANEL, startWidth + ev.clientX - startX));
+      store.patchUi({ formPanelWidth: next });
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   if (!ready) {
     return <div className="flex h-screen items-center justify-center text-sm text-gray-400">読み込み中…</div>;
   }
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-neutral-100 font-sans text-slate-800">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-neutral-100 font-sans text-slate-800 print:block print:h-auto print:overflow-visible">
       {/* ツールバー */}
       <div className="z-20 flex items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5 shadow-sm print:hidden">
         <div className="flex shrink-0 items-center gap-2">
@@ -151,7 +170,7 @@ export default function DocumentEditor() {
       </div>
 
       {connected ? (
-        <div className="flex h-full flex-1 overflow-hidden">
+        <div className="flex h-full flex-1 overflow-hidden print:block print:h-auto print:overflow-visible">
           {/* 左: 取引先 → 案件 ツリー */}
           {!ui.sidebarCollapsed && (
             <>
@@ -166,7 +185,10 @@ export default function DocumentEditor() {
           )}
 
           {/* 中央: 入力フォーム */}
-          <div className="z-10 h-full w-1/3 min-w-[380px] max-w-[520px] shrink-0 overflow-y-auto border-r border-neutral-300 bg-white p-6 shadow-xl print:hidden">
+          <div
+            style={{ width: ui.formPanelWidth }}
+            className="z-10 h-full shrink-0 overflow-y-auto border-r border-neutral-300 bg-white p-6 shadow-xl print:hidden"
+          >
             {activeProject && resolved ? (
               <FormPanel doc={resolved.doc} type={ui.activeType} onPrint={handlePrint}>
                 <DocumentTypeTabs project={activeProject} />
@@ -182,10 +204,15 @@ export default function DocumentEditor() {
             )}
           </div>
 
+          <div
+            onMouseDown={startFormPanelResize}
+            className="w-1 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-blue-400 print:hidden"
+          />
+
           {/* 右: プレビュー */}
           <div
             ref={previewContainerRef}
-            className="flex h-full flex-1 justify-center overflow-y-auto bg-neutral-200 p-8 print:overflow-visible print:bg-white print:p-0"
+            className="flex h-full flex-1 justify-center overflow-y-auto bg-neutral-200 p-8 print:block print:h-auto print:overflow-visible print:bg-white print:p-0"
           >
             {resolved ? (
               <div className="preview-zoom-wrapper" style={{ zoom: previewScale }}>

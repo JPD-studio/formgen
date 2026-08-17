@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Plus, Printer, Trash2 } from 'lucide-react';
-import { DocumentEntry, DocumentType, LineItem, TaxRate } from '@/types';
+import { Printer } from 'lucide-react';
+import { DocumentEntry, DocumentType } from '@/types';
 import { useStore } from '@/lib/FormgenStore';
-import { newId } from '@/lib/formgenFile';
+import LineItemsTable from './LineItemsTable';
 
 interface FormPanelProps {
   doc: DocumentEntry;
@@ -16,21 +16,6 @@ interface FormPanelProps {
 export default function FormPanel({ doc, type, onPrint, children }: FormPanelProps) {
   const store = useStore();
   const { activeClient, activeProject } = store;
-
-  const patchItem = (id: string, field: keyof LineItem, value: string | number) => {
-    store.updateItems(items => items.map(item => (item.id === id ? { ...item, [field]: value } : item)));
-  };
-
-  const addItem = () => {
-    store.updateItems(items => [
-      ...items,
-      { id: newId('i'), code: '', name: '', quantity: 1, unit: '式', unitPrice: 0, taxRate: 10 },
-    ]);
-  };
-
-  const removeItem = (id: string) => {
-    store.updateItems(items => items.filter(item => item.id !== id));
-  };
 
   return (
     <div className="space-y-8 pb-12">
@@ -115,98 +100,26 @@ export default function FormPanel({ doc, type, onPrint, children }: FormPanelPro
         </p>
       </section>
 
+      {/* 特記事項 */}
+      <section className="space-y-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">特記事項</h3>
+        <textarea
+          value={doc.notes}
+          onChange={e => store.updateDocument({ notes: e.target.value })}
+          placeholder="必要に応じて特記事項を入力してください"
+          rows={3}
+          className="w-full rounded-md border border-gray-300 p-2 text-sm font-sans"
+        />
+      </section>
+
       {/* 明細行 */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">明細行</h3>
-          <button onClick={addItem} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
-            <Plus size={14} /> 追加
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {doc.items.length === 0 && (
-            <p className="rounded-md border border-dashed border-gray-300 py-6 text-center text-xs text-gray-400">
-              明細行がありません
-            </p>
-          )}
-          {doc.items.map(item => (
-            <div key={item.id} className="group relative rounded-md border border-gray-200 bg-gray-50 p-3">
-              <button
-                onClick={() => removeItem(item.id)}
-                aria-label="この行を削除"
-                className="absolute right-2 top-2 text-gray-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
-              >
-                <Trash2 size={16} />
-              </button>
-
-              <div className="grid grid-cols-12 gap-2 pr-6">
-                <div className="col-span-12">
-                  <input
-                    type="text"
-                    placeholder="品名"
-                    value={item.name}
-                    onChange={e => patchItem(item.id, 'name', e.target.value)}
-                    className="w-full rounded border border-gray-300 p-1.5 text-sm"
-                  />
-                </div>
-                <div className="col-span-4">
-                  <input
-                    type="text"
-                    placeholder="品番(任意)"
-                    value={item.code}
-                    onChange={e => patchItem(item.id, 'code', e.target.value)}
-                    className="w-full rounded border border-gray-300 p-1.5 text-xs"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="数量"
-                    value={item.quantity}
-                    onChange={e => patchItem(item.id, 'quantity', Number(e.target.value))}
-                    className="w-full rounded border border-gray-300 p-1.5 text-sm"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <input
-                    type="text"
-                    placeholder="単位"
-                    value={item.unit}
-                    onChange={e => patchItem(item.id, 'unit', e.target.value)}
-                    className="w-full rounded border border-gray-300 p-1.5 text-center text-sm"
-                  />
-                </div>
-                <div className="col-span-4">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="単価"
-                    value={item.unitPrice}
-                    onChange={e => patchItem(item.id, 'unitPrice', Number(e.target.value))}
-                    className="w-full rounded border border-gray-300 p-1.5 text-right text-sm"
-                  />
-                </div>
-                <div className="col-span-4 flex items-center gap-2">
-                  <label className="text-xs text-gray-500">税率</label>
-                  <select
-                    value={item.taxRate}
-                    onChange={e => patchItem(item.id, 'taxRate', Number(e.target.value) as TaxRate)}
-                    className="flex-1 rounded border border-gray-300 p-1.5 text-sm"
-                  >
-                    <option value={10}>10%</option>
-                    <option value={8}>8%（軽減）</option>
-                    <option value={0}>対象外</option>
-                  </select>
-                </div>
-                <div className="col-span-8 flex items-center justify-end text-sm text-gray-500 tabular-nums">
-                  小計 ¥{(item.quantity * item.unitPrice).toLocaleString('ja-JP')}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">明細行</h3>
+        <LineItemsTable
+          key={`${store.ui.activeClientId}-${store.ui.activeProjectId}-${type}`}
+          items={doc.items}
+          onChange={store.updateItems}
+        />
       </section>
     </div>
   );

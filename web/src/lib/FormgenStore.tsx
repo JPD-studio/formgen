@@ -50,6 +50,7 @@ export interface UiState {
   expandedClientIds: string[];
   sidebarWidth: number;
   sidebarCollapsed: boolean;
+  formPanelWidth: number;
 }
 
 interface State {
@@ -88,6 +89,7 @@ const defaultUi: UiState = {
   expandedClientIds: [],
   sidebarWidth: 260,
   sidebarCollapsed: false,
+  formPanelWidth: 460,
 };
 
 const initialState: State = {

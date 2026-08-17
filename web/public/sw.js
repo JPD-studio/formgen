@@ -1,4 +1,4 @@
-const CACHE_NAME = 'formgen-v2';
+const CACHE_NAME = 'formgen-v3';
 
 const PRECACHE_ASSETS = ['/', '/manifest.json', '/stamp.png', '/icon-192.png', '/icon-512.png'];
 
