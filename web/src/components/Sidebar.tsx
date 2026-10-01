@@ -235,7 +235,7 @@ function ProjectRow({
           <span className="flex shrink-0 gap-0.5">
             {DOCUMENT_TYPES.map(type => {
               const exists = !!project.documents[type];
-              const enabled = store.file.enabledDocumentTypes?.includes(type) ?? true;
+              const enabled = project.enabledDocumentTypes?.includes(type) ?? true;
               if (!enabled && !exists) return null;
               
               return (

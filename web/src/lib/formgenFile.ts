@@ -44,7 +44,7 @@ export const emptyIssuer: IssuerInfo = {
 };
 
 export function emptyFile(): FormgenFileV3 {
-  return { version: 3, issuer: { ...emptyIssuer }, clients: [], enabledDocumentTypes: [...DOCUMENT_TYPES] };
+  return { version: 3, issuer: { ...emptyIssuer }, clients: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -118,22 +118,34 @@ function parseDocumentMap(raw: unknown): DocumentMap {
   return map;
 }
 
-function parseProject(raw: unknown, index: number): Project {
+function parseEnabledDocumentTypes(raw: unknown): DocumentType[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const types = raw.filter((type): type is DocumentType =>
+    typeof type === 'string' && DOCUMENT_TYPES.includes(type as DocumentType)
+  );
+  return DOCUMENT_TYPES.filter(type => types.includes(type));
+}
+
+function parseProject(raw: unknown, index: number, fallbackEnabledDocumentTypes?: DocumentType[]): Project {
   const o = isRecord(raw) ? raw : {};
+  const enabledDocumentTypes = parseEnabledDocumentTypes(o.enabledDocumentTypes) ?? fallbackEnabledDocumentTypes;
   return {
     id: str(o.id) || newId('p'),
     name: str(o.name, `案件${index + 1}`),
     documents: parseDocumentMap(o.documents),
+    enabledDocumentTypes,
   };
 }
 
-function parseClient(raw: unknown, index: number): Client {
+function parseClient(raw: unknown, index: number, fallbackEnabledDocumentTypes?: DocumentType[]): Client {
   const o = isRecord(raw) ? raw : {};
   return {
     id: str(o.id) || newId('c'),
     name: str(o.name, `取引先${index + 1}`),
     honorific: str(o.honorific, '様'),
-    projects: arr(o.projects).map(parseProject),
+    projects: arr(o.projects).map((project, projectIndex) =>
+      parseProject(project, projectIndex, fallbackEnabledDocumentTypes)
+    ),
   };
 }
 
@@ -152,11 +164,13 @@ function parseIssuer(raw: unknown): IssuerInfo {
 }
 
 function parseV3(o: Record<string, unknown>): FormgenFileV3 {
-  const clients = arr(o.clients).map(parseClient);
-  const enabledDocumentTypes = Array.isArray(o.enabledDocumentTypes) 
-    ? (o.enabledDocumentTypes as DocumentType[]) 
-    : undefined;
-  return { version: 3, issuer: parseIssuer(o.issuer), clients: dedupeIds(clients), enabledDocumentTypes };
+  // 旧実装ではファイル直下に保存していたため、案件側に設定がない場合だけ
+  // 互換用の既存値を引き継ぐ。保存時には案件ごとの形式へ正規化される。
+  const legacyEnabledDocumentTypes = parseEnabledDocumentTypes(o.enabledDocumentTypes);
+  const clients = arr(o.clients).map((rawClient, clientIndex) =>
+    parseClient(rawClient, clientIndex, legacyEnabledDocumentTypes)
+  );
+  return { version: 3, issuer: parseIssuer(o.issuer), clients: dedupeIds(clients) };
 }
 
 /** 手編集でIDが重複・欠落しても選択が壊れないよう、読み込み時に一意化する */
@@ -304,7 +318,6 @@ function toPlain(file: FormgenFileV3): Record<string, unknown> {
   return {
     version: 3,
     issuer,
-    enabledDocumentTypes: file.enabledDocumentTypes,
     clients: file.clients.map(c => ({
       id: c.id,
       name: c.name,
@@ -333,7 +346,11 @@ function toPlain(file: FormgenFileV3): Record<string, unknown> {
           });
           documents[type] = entry;
         }
-        return { id: p.id, name: p.name, documents };
+        const project: Record<string, unknown> = { id: p.id, name: p.name, documents };
+        if (p.enabledDocumentTypes !== undefined) {
+          project.enabledDocumentTypes = p.enabledDocumentTypes;
+        }
+        return project;
       }),
     })),
   };

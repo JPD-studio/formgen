@@ -248,7 +248,7 @@ interface StoreValue extends State {
   ensureDocument: (type: DocumentType) => void;
   deleteDocument: (type: DocumentType) => void;
   updateIssuer: (patch: Partial<IssuerInfo>) => void;
-  updateEnabledDocumentTypes: (types: DocumentType[]) => void;
+  updateActiveProject: (patch: Partial<Project>) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -637,7 +637,12 @@ export function FormgenProvider({ children }: { children: React.ReactNode }) {
               items: doc.items.map(i => ({ ...i, id: newId('i') })),
             };
           }
-          const copy: Project = { id: newId('p'), name: `${source.name} のコピー`, documents };
+          const copy: Project = {
+            id: newId('p'),
+            name: `${source.name} のコピー`,
+            enabledDocumentTypes: source.enabledDocumentTypes,
+            documents,
+          };
           return mapClient(file, clientId, c => ({
             ...c,
             projects: [...c.projects.slice(0, c.projects.indexOf(source) + 1), copy, ...c.projects.slice(c.projects.indexOf(source) + 1)],
@@ -714,8 +719,10 @@ export function FormgenProvider({ children }: { children: React.ReactNode }) {
         patchFile(file => ({ ...file, issuer: { ...file.issuer, ...patch } }));
       },
 
-      updateEnabledDocumentTypes: types => {
-        patchFile(file => ({ ...file, enabledDocumentTypes: types }));
+      updateActiveProject: patch => {
+        const { activeClientId, activeProjectId } = state.ui;
+        if (!activeClientId || !activeProjectId) return;
+        patchFile(file => mapProject(file, activeClientId, activeProjectId, p => ({ ...p, ...patch })));
       },
     };
   }, [

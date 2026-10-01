@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { X } from 'lucide-react';
-import { IssuerInfo, DOCUMENT_TYPES } from '@/types';
+import { IssuerInfo } from '@/types';
 import { useStore } from '@/lib/FormgenStore';
 
 const FIELDS: { key: keyof IssuerInfo; label: string; multiline?: boolean; placeholder?: string }[] = [
@@ -39,34 +39,6 @@ export default function IssuerSettingsDialog({ onClose }: { onClose: () => void 
           <p className="text-xs text-gray-500">
             すべての帳票で共通して使われます。ファイル内にも 1 か所だけ保存されます。
           </p>
-          <div className="mb-4 space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
-            <label className="block text-xs font-bold text-gray-700">有効な帳票タイプ</label>
-            <div className="flex flex-wrap gap-4">
-              {DOCUMENT_TYPES.map(type => {
-                const enabled = store.file.enabledDocumentTypes?.includes(type) ?? true;
-                return (
-                  <label key={type} className="flex items-center gap-1.5 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={e => {
-                        const current = store.file.enabledDocumentTypes ?? [...DOCUMENT_TYPES];
-                        const next = e.target.checked
-                          ? [...current, type]
-                          : current.filter(t => t !== type);
-                        // DOCUMENT_TYPESの順序を保つ
-                        const sorted = DOCUMENT_TYPES.filter(t => next.includes(t));
-                        store.updateEnabledDocumentTypes(sorted);
-                      }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    {type}
-                  </label>
-                );
-              })}
-            </div>
-            <p className="text-[10px] text-gray-400 mt-1">ここでチェックを外した帳票は、タブに追加されなくなります。</p>
-          </div>
           {FIELDS.map(({ key, label, multiline, placeholder }) => (
             <div key={key}>
               <label className="mb-1 block text-xs text-gray-500">{label}</label>
