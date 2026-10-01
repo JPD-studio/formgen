@@ -57,6 +57,7 @@ export interface FormgenFileV3 {
   version: 3;
   issuer: IssuerInfo;
   clients: Client[];
+  enabledDocumentTypes?: DocumentType[];
 }
 
 /** PreviewPanel / FormPanel に渡す、解決済みの平坦な帳票データ */

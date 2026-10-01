@@ -233,17 +233,23 @@ function ProjectRow({
             {project.name || '（無題の案件）'}
           </span>
           <span className="flex shrink-0 gap-0.5">
-            {DOCUMENT_TYPES.map(type => (
-              <span
-                key={type}
-                title={project.documents[type] ? `${type}あり` : `${type}なし`}
-                className={`inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none ${
-                  project.documents[type] ? 'bg-blue-600 text-white' : 'bg-neutral-200 text-neutral-400'
-                }`}
-              >
-                {TYPE_BADGE[type]}
-              </span>
-            ))}
+            {DOCUMENT_TYPES.map(type => {
+              const exists = !!project.documents[type];
+              const enabled = store.file.enabledDocumentTypes?.includes(type) ?? true;
+              if (!enabled && !exists) return null;
+              
+              return (
+                <span
+                  key={type}
+                  title={exists ? `${type}あり` : `${type}なし`}
+                  className={`inline-flex h-4 w-4 items-center justify-center rounded text-[9px] leading-none ${
+                    exists ? 'bg-blue-600 text-white' : 'bg-neutral-200 text-neutral-400'
+                  }`}
+                >
+                  {TYPE_BADGE[type]}
+                </span>
+              );
+            })}
           </span>
           <RowMenuButton
             open={menuOpen}

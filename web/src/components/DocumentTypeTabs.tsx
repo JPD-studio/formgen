@@ -13,6 +13,11 @@ export default function DocumentTypeTabs({ project }: { project: Project }) {
     <div className="mt-2 flex gap-1">
       {DOCUMENT_TYPES.map(type => {
         const exists = !!project.documents[type];
+        const enabled = store.file.enabledDocumentTypes?.includes(type) ?? true;
+        
+        // 有効でない かつ まだ存在しない ならタブを出さない
+        if (!enabled && !exists) return null;
+
         const active = activeType === type && exists;
         return (
           <button

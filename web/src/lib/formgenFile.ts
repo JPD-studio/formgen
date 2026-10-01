@@ -44,7 +44,7 @@ export const emptyIssuer: IssuerInfo = {
 };
 
 export function emptyFile(): FormgenFileV3 {
-  return { version: 3, issuer: { ...emptyIssuer }, clients: [] };
+  return { version: 3, issuer: { ...emptyIssuer }, clients: [], enabledDocumentTypes: [...DOCUMENT_TYPES] };
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +153,10 @@ function parseIssuer(raw: unknown): IssuerInfo {
 
 function parseV3(o: Record<string, unknown>): FormgenFileV3 {
   const clients = arr(o.clients).map(parseClient);
-  return { version: 3, issuer: parseIssuer(o.issuer), clients: dedupeIds(clients) };
+  const enabledDocumentTypes = Array.isArray(o.enabledDocumentTypes) 
+    ? (o.enabledDocumentTypes as DocumentType[]) 
+    : undefined;
+  return { version: 3, issuer: parseIssuer(o.issuer), clients: dedupeIds(clients), enabledDocumentTypes };
 }
 
 /** 手編集でIDが重複・欠落しても選択が壊れないよう、読み込み時に一意化する */
@@ -301,6 +304,7 @@ function toPlain(file: FormgenFileV3): Record<string, unknown> {
   return {
     version: 3,
     issuer,
+    enabledDocumentTypes: file.enabledDocumentTypes,
     clients: file.clients.map(c => ({
       id: c.id,
       name: c.name,

@@ -248,6 +248,7 @@ interface StoreValue extends State {
   ensureDocument: (type: DocumentType) => void;
   deleteDocument: (type: DocumentType) => void;
   updateIssuer: (patch: Partial<IssuerInfo>) => void;
+  updateEnabledDocumentTypes: (types: DocumentType[]) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -711,6 +712,10 @@ export function FormgenProvider({ children }: { children: React.ReactNode }) {
 
       updateIssuer: patch => {
         patchFile(file => ({ ...file, issuer: { ...file.issuer, ...patch } }));
+      },
+
+      updateEnabledDocumentTypes: types => {
+        patchFile(file => ({ ...file, enabledDocumentTypes: types }));
       },
     };
   }, [
