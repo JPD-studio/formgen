@@ -63,7 +63,7 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
         <div className="text-right text-[9pt] space-y-1">
           <p>{pageNumText}</p>
           <p>{doc.date}</p>
-          <p>{type === '見積書' ? '見積番号' : type === '請求書' ? '請求番号' : '納品書番号'}: {doc.documentNumber}</p>
+          <p>{type === '見積書' ? '見積番号' : type === '請求書' || type === '立替金請求書' ? '請求番号' : type === '発注書' ? '発注番号' : '納品書番号'}: {doc.documentNumber}</p>
         </div>
       </div>
 
@@ -80,7 +80,7 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
           <p>件名 : {subject}</p>
 
           <div className="mt-2 text-[13pt] border-b-2 border-black pb-1 inline-block min-w-[80%] whitespace-nowrap">
-            {type === '見積書' ? '御見積金額' : 'ご請求金額'}　{formatCurrency(totals.total)}(内税)
+            {type === '見積書' ? '御見積金額' : type === '発注書' ? 'ご発注金額' : type === '納品書' ? '納品金額' : 'ご請求金額'}　{formatCurrency(totals.total)}(内税)
           </div>
 
           {doc.condition && (

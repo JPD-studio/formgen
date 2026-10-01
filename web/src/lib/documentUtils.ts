@@ -54,16 +54,16 @@ export function emptyDocument(file: FormgenFileV3, type: DocumentType): Document
     date: todayFormatted(),
     referenceNumber: '',
     estimateNumber: '',
-    condition: type === '見積書' ? '見積有効期限　2週間' : type === '請求書' ? '月末締め翌月末払い' : '',
+    condition: type === '見積書' ? '見積有効期限　2週間' : type === '請求書' || type === '立替金請求書' ? '月末締め翌月末払い' : '',
     notes: '',
     items: [],
   };
 }
 
-/** 見積書から請求書・納品書を生成する */
+/** 見積書から各種帳票を生成する */
 export function generateFromEstimate(
   estimate: DocumentEntry,
-  targetType: '請求書' | '納品書',
+  targetType: '請求書' | '納品書' | '発注書' | '立替金請求書',
   file: FormgenFileV3
 ): DocumentEntry {
   return {
@@ -72,7 +72,7 @@ export function generateFromEstimate(
     date: todayFormatted(),
     documentNumber: nextDocumentNumber(file),
     estimateNumber: estimate.documentNumber,
-    condition: targetType === '請求書' ? '月末締め翌月末払い' : '',
+    condition: targetType === '請求書' || targetType === '立替金請求書' ? '月末締め翌月末払い' : '',
     notes: '',
   };
 }

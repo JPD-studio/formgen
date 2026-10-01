@@ -20,6 +20,8 @@ const TYPE_BADGE: Record<DocumentType, string> = {
   見積書: '見',
   請求書: '請',
   納品書: '納',
+  発注書: '発',
+  立替金請求書: '立',
 };
 
 export default function Sidebar() {

@@ -1,6 +1,6 @@
-export type DocumentType = '見積書' | '請求書' | '納品書';
+export type DocumentType = '見積書' | '請求書' | '納品書' | '発注書' | '立替金請求書';
 
-export const DOCUMENT_TYPES: DocumentType[] = ['見積書', '請求書', '納品書'];
+export const DOCUMENT_TYPES: DocumentType[] = ['見積書', '請求書', '納品書', '発注書', '立替金請求書'];
 
 export type TaxRate = 10 | 8 | 0;
 
