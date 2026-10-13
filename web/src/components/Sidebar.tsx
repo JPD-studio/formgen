@@ -236,7 +236,7 @@ function ProjectRow({
             {DOCUMENT_TYPES.map(type => {
               const exists = !!project.documents[type];
               const enabled = project.enabledDocumentTypes?.includes(type) ?? true;
-              if (!enabled && !exists) return null;
+              if (!enabled) return null;
               
               return (
                 <span

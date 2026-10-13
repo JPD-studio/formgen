@@ -18,7 +18,8 @@ export default function DocumentTypeTabs({ project }: { project: Project }) {
           const exists = !!project.documents[type];
           const enabled = project.enabledDocumentTypes?.includes(type) ?? true;
 
-          if (!enabled && !exists) return null;
+          // チェックを外した帳票は、作成済みでもタブから隠す（データは残る）
+          if (!enabled) return null;
 
           const active = activeType === type && exists;
           return (
@@ -70,7 +71,14 @@ export default function DocumentTypeTabs({ project }: { project: Project }) {
                             ? [...current, type]
                             : current.filter(t => t !== type);
                           const sorted = DOCUMENT_TYPES.filter(t => next.includes(t));
+                          if (sorted.length === 0) return; // 最低1つは残す
                           store.updateActiveProject({ enabledDocumentTypes: sorted });
+                          // 表示中の帳票を隠したときは、残った帳票へ切り替える
+                          if (!e.target.checked && type === activeType) {
+                            const existing = sorted.find(t => project.documents[t]);
+                            if (existing) store.setActiveType(existing);
+                            else store.ensureDocument(sorted[0]);
+                          }
                         }}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
