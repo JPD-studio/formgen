@@ -12,8 +12,8 @@ const FIELDS: { key: keyof IssuerInfo; label: string; multiline?: boolean; place
   { key: 'tel', label: '電話番号', placeholder: 'TEL: 000-0000-0000' },
   { key: 'email', label: 'メールアドレス' },
   { key: 'registrationNumber', label: '登録番号（インボイス）', placeholder: '登録番号: T0000000000000' },
-  { key: 'message', label: '挨拶文', multiline: true },
-  { key: 'bankInfo', label: '備考・振込先', multiline: true },
+  { key: 'message', label: '見積書の挨拶文', multiline: true },
+  { key: 'bankInfo', label: '振込先（請求書・立替金請求書に表示）', multiline: true, placeholder: 'PayPay銀行 ○○支店 普通0000000 ○○（カ' },
 ];
 
 export default function IssuerSettingsDialog({ onClose }: { onClose: () => void }) {

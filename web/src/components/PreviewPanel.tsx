@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { LineItem, ResolvedDocument } from '@/types';
+import { DocumentType, LineItem, ResolvedDocument } from '@/types';
 
 interface PreviewPanelProps {
   data: ResolvedDocument;
@@ -23,8 +23,26 @@ interface PageLayout {
   showSummary: boolean;
 }
 
+const INVOICE_FOOTER_HEAD = `平素は格別のご高配を賜り、誠にありがとうございます。
+上記の通りご請求申し上げますので、下記口座までお振込みくださいますようお願い申し上げます。`;
+
+const INVOICE_FOOTER_TAIL = `※ 支払条件：月末締め翌月末払い、銀行振込
+※ 恐れ入りますが、振込手数料はお客様ご負担にてお願い申し上げます。`;
+
+/** 帳票の種類ごとの末尾文。ここに無い種類（見積書）は自社設定の挨拶文を使う */
+const FOOTERS: Partial<Record<DocumentType, string>> = {
+  発注書: `平素は格別のご高配を賜り、誠にありがとうございます。
+上記の通り発注いたしますので、ご確認のうえ、ご請書または受領の旨をご連絡ください。
+※ 納期：別途ご連絡の通り
+※ 支払条件：月末締め翌月末払い、銀行振込（貴社指定口座）
+※ 振込手数料は当社負担`,
+  納品書: `平素は格別のご高配を賜り、誠にありがとうございます。
+上記の通り納品いたしました。ご査収のほどお願い申し上げます。`,
+};
+
 export default function PreviewPanel({ data }: PreviewPanelProps) {
   const { type, clientName, honorific, subject, issuer, doc } = data;
+  const isInvoice = type === '請求書' || type === '立替金請求書';
   const items = doc.items;
 
   // 税率ごとに集計する（インボイスの内訳表がこれを使う）
@@ -204,9 +222,24 @@ export default function PreviewPanel({ data }: PreviewPanelProps) {
       </div>
 
       <div className="mt-4 pt-2 space-y-2 text-[9pt]">
-        <p>{issuer.message}</p>
-        {doc.notes && <div className="whitespace-pre-wrap">{doc.notes}</div>}
-        <div className="whitespace-pre-wrap">{issuer.bankInfo}</div>
+        {isInvoice ? (
+          <>
+            <div className="whitespace-pre-wrap">{INVOICE_FOOTER_HEAD}</div>
+            {doc.notes && <div className="whitespace-pre-wrap">{doc.notes}</div>}
+            {/* 振込先は、こちらが代金を受け取る帳票にだけ載せる */}
+            <div className="whitespace-pre-wrap">{issuer.bankInfo}</div>
+            <div className="whitespace-pre-wrap">{INVOICE_FOOTER_TAIL}</div>
+          </>
+        ) : (
+          <>
+            {FOOTERS[type] ? (
+              <div className="whitespace-pre-wrap">{FOOTERS[type]}</div>
+            ) : (
+              <p>{issuer.message}</p>
+            )}
+            {doc.notes && <div className="whitespace-pre-wrap">{doc.notes}</div>}
+          </>
+        )}
       </div>
 
       <p className="mt-6 text-center text-[9pt] text-gray-500">－　以下余白　－</p>
