@@ -137,5 +137,5 @@ export function resolveDocument(
 export function documentTitle(resolved: ResolvedDocument | null): string {
   if (!resolved) return '帳票作成ソフト';
   const name = resolved.recipientName.trim() || '名称未設定';
-  return `${name}_${resolved.doc.documentNumber}`.replace(/[\s　]+/g, '');
+  return `${resolved.type}_${name}_${resolved.doc.documentNumber}`.replace(/[\s　]+/g, '');
 }
