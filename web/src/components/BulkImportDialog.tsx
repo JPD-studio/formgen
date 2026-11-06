@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LineItem } from '@/types';
 
 interface BulkImportDialogProps {
@@ -91,7 +92,8 @@ export default function BulkImportDialog({ items, onImport, onClose }: BulkImpor
     }
   };
 
-  return (
+  // 明細テーブル内のコピペ/Undo処理に横取りされないよう body 直下に描画する
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-[90%] max-w-2xl rounded-lg bg-white shadow-xl">
         <div className="border-b border-gray-200 px-6 py-4">
@@ -140,6 +142,7 @@ export default function BulkImportDialog({ items, onImport, onClose }: BulkImpor
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

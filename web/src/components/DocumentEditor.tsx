@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Building2, MonitorDown, PanelLeftClose, PanelLeftOpen, RefreshCw } from 'lucide-react';
+import { Building2, Eye, EyeOff, MonitorDown, PanelLeftClose, PanelLeftOpen, RefreshCw } from 'lucide-react';
 import { useStore } from '@/lib/FormgenStore';
 import { documentTitle, resolveDocument } from '@/lib/documentUtils';
 import FormPanel from './FormPanel';
@@ -160,6 +160,16 @@ export default function DocumentEditor() {
               <MonitorDown size={16} /> インストール
             </button>
           )}
+          {connected && (
+            <button
+              onClick={() => store.patchUi({ previewHidden: !ui.previewHidden })}
+              title={ui.previewHidden ? '帳票イメージを表示' : '帳票イメージを隠して入力欄を広げる'}
+              className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-200"
+            >
+              {ui.previewHidden ? <Eye size={16} /> : <EyeOff size={16} />}
+              {ui.previewHidden ? 'プレビュー表示' : 'プレビュー非表示'}
+            </button>
+          )}
           <button
             onClick={() => setIssuerOpen(true)}
             className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-200"
@@ -186,8 +196,8 @@ export default function DocumentEditor() {
 
           {/* 中央: 入力フォーム */}
           <div
-            style={{ width: ui.formPanelWidth }}
-            className="z-10 h-full shrink-0 overflow-y-auto border-r border-neutral-300 bg-white p-6 shadow-xl print:hidden"
+            style={ui.previewHidden ? undefined : { width: ui.formPanelWidth }}
+            className={`z-10 h-full overflow-y-auto ${ui.previewHidden ? 'min-w-0 flex-1' : 'shrink-0'} border-r border-neutral-300 bg-white p-6 shadow-xl print:hidden`}
           >
             {activeProject && resolved ? (
               <FormPanel doc={resolved.doc} type={ui.activeType} onPrint={handlePrint}>
@@ -206,13 +216,13 @@ export default function DocumentEditor() {
 
           <div
             onMouseDown={startFormPanelResize}
-            className="w-1 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-blue-400 print:hidden"
+            className={`${ui.previewHidden ? 'hidden' : ''} w-1 shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-blue-400 print:hidden`}
           />
 
           {/* 右: プレビュー */}
           <div
             ref={previewContainerRef}
-            className="flex h-full flex-1 justify-center overflow-y-auto bg-neutral-200 p-8 print:block print:h-auto print:overflow-visible print:bg-white print:p-0"
+            className={`${ui.previewHidden ? 'hidden print:block' : 'flex'} h-full flex-1 justify-center overflow-y-auto bg-neutral-200 p-8 print:block print:h-auto print:overflow-visible print:bg-white print:p-0`}
           >
             {resolved ? (
               <div className="preview-zoom-wrapper" style={{ zoom: previewScale }}>

@@ -51,6 +51,7 @@ export interface UiState {
   sidebarWidth: number;
   sidebarCollapsed: boolean;
   formPanelWidth: number;
+  previewHidden: boolean;
 }
 
 interface State {
@@ -90,6 +91,7 @@ const defaultUi: UiState = {
   sidebarWidth: 260,
   sidebarCollapsed: false,
   formPanelWidth: 460,
+  previewHidden: false,
 };
 
 const initialState: State = {
