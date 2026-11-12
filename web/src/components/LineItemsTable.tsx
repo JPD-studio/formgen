@@ -16,6 +16,36 @@ interface CellAddress {
   col: number;
 }
 
+// 数値セル: 入力中は文字列のまま保持し（先頭の0が残らないよう）、フォーカスが外れたら数値に整える
+function NumberCellInput({
+  value,
+  onValueChange,
+  ...rest
+}: {
+  value: number;
+  onValueChange: (v: string) => void;
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
+  const [text, setText] = useState<string | null>(null); // null = 非編集中
+  return (
+    <input
+      {...rest}
+      type="text"
+      inputMode="numeric"
+      value={text ?? String(value)}
+      onFocus={e => {
+        setText(value === 0 ? '' : String(value));
+        e.target.select();
+      }}
+      onChange={e => {
+        const v = e.target.value.replace(/[^0-9.]/g, '');
+        setText(v);
+        onValueChange(v);
+      }}
+      onBlur={() => setText(null)}
+    />
+  );
+}
+
 const COLUMN_KEYS = ['code', 'name', 'quantity', 'unit', 'unitPrice', 'taxRate'] as const;
 const COLUMN_LABELS = ['品番', '品名', '数量', '単位', '単価', '税率'];
 
@@ -149,6 +179,9 @@ export default function LineItemsTable({ items, onChange }: LineItemsTableProps)
     colIndex: number,
     e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
+    // IME変換中は候補選択・確定のキーなので、セル移動に使わない
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+
     const target = e.currentTarget as HTMLInputElement | HTMLSelectElement;
 
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -459,13 +492,11 @@ export default function LineItemsTable({ items, onChange }: LineItemsTableProps)
                     data-cell-col={2}
                     onMouseDown={e => handleCellMouseDown(rowIndex, 2, e)}
                   >
-                    <input
-                      type="number"
-                      inputMode="numeric"
+                    <NumberCellInput
                       data-row={rowIndex}
                       data-col={2}
                       value={item.quantity}
-                      onChange={e => handleCellChange(rowIndex, 'quantity', e.target.value)}
+                      onValueChange={v => handleCellChange(rowIndex, 'quantity', v)}
                       onKeyDown={(e) => handleKeyDown(rowIndex, 2, e)}
                       className="w-full border-0 px-0 py-0 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                     />
@@ -497,13 +528,11 @@ export default function LineItemsTable({ items, onChange }: LineItemsTableProps)
                     data-cell-col={4}
                     onMouseDown={e => handleCellMouseDown(rowIndex, 4, e)}
                   >
-                    <input
-                      type="number"
-                      inputMode="numeric"
+                    <NumberCellInput
                       data-row={rowIndex}
                       data-col={4}
                       value={item.unitPrice}
-                      onChange={e => handleCellChange(rowIndex, 'unitPrice', e.target.value)}
+                      onValueChange={v => handleCellChange(rowIndex, 'unitPrice', v)}
                       onKeyDown={(e) => handleKeyDown(rowIndex, 4, e)}
                       className="w-full border-0 px-0 py-0 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                     />

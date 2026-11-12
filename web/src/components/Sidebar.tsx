@@ -363,6 +363,8 @@ function InlineInput({
       onClick={e => e.stopPropagation()}
       onBlur={() => onCommit(value)}
       onKeyDown={e => {
+        // IME変換中（ATOK等の確定Enter・候補選択）は何もしない
+        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
         if (e.key === 'Enter') onCommit(value);
         if (e.key === 'Escape') onCancel();
       }}
