@@ -77,6 +77,32 @@ export function generateFromEstimate(
   };
 }
 
+/** 見積書と明細（または見積書番号の参照）がずれているか */
+export function differsFromEstimate(doc: DocumentEntry, estimate: DocumentEntry): boolean {
+  if (doc.estimateNumber !== estimate.documentNumber) return true;
+  if (doc.items.length !== estimate.items.length) return true;
+  return doc.items.some((a, i) => {
+    const b = estimate.items[i];
+    return (
+      a.code !== b.code ||
+      a.name !== b.name ||
+      a.quantity !== b.quantity ||
+      a.unit !== b.unit ||
+      a.unitPrice !== b.unitPrice ||
+      a.taxRate !== b.taxRate
+    );
+  });
+}
+
+/** 見積書の最新内容で明細・見積書番号を作り直す。帳票番号・日付・特記事項・発注書番号・支払条件は保持する */
+export function regenerateFromEstimate(current: DocumentEntry, estimate: DocumentEntry): DocumentEntry {
+  return {
+    ...current,
+    items: estimate.items.map(item => ({ ...item, id: newId('i') })),
+    estimateNumber: estimate.documentNumber,
+  };
+}
+
 export function newProject(file: FormgenFileV3, name = ''): Project {
   return {
     id: newId('p'),

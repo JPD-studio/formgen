@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Printer } from 'lucide-react';
+import { AlertTriangle, Printer, RefreshCw } from 'lucide-react';
 import { DocumentEntry, DocumentType } from '@/types';
 import { useStore } from '@/lib/FormgenStore';
+import { differsFromEstimate } from '@/lib/documentUtils';
 import LineItemsTable from './LineItemsTable';
 
 interface FormPanelProps {
@@ -16,6 +17,15 @@ interface FormPanelProps {
 export default function FormPanel({ doc, type, onPrint, children }: FormPanelProps) {
   const store = useStore();
   const { activeClient, activeProject } = store;
+
+  // 請求書・納品書などが、見積書の最新内容とずれているときに知らせる
+  const estimate = activeProject?.documents['見積書'];
+  const outOfSync = type !== '見積書' && !!estimate && differsFromEstimate(doc, estimate);
+
+  const handleRegenerate = () => {
+    if (!window.confirm(`${type}の明細を見積書の最新内容で作り直します。\n現在の明細の編集内容は失われます（日付・番号・特記事項は変わりません）。よろしいですか？`)) return;
+    store.regenerateFromEstimate();
+  };
 
   return (
     <div className="space-y-8 pb-12">
@@ -40,6 +50,24 @@ export default function FormPanel({ doc, type, onPrint, children }: FormPanelPro
         </div>
         {children}
       </div>
+
+      {outOfSync && (
+        <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">見積書と内容が異なります</p>
+            <p className="mt-0.5 text-xs">
+              明細または見積書番号が、現在の見積書と一致していません。意図した変更でなければ作り直してください。
+            </p>
+          </div>
+          <button
+            onClick={handleRegenerate}
+            className="flex shrink-0 items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-700"
+          >
+            <RefreshCw size={14} /> 見積書から再生成
+          </button>
+        </div>
+      )}
 
       {/* 基本情報 */}
       <section className="space-y-4">

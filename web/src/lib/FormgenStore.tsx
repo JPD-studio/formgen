@@ -30,6 +30,7 @@ import {
   emptyDocument,
   findProject,
   generateFromEstimate,
+  regenerateFromEstimate,
   newClient,
   newProject,
 } from './documentUtils';
@@ -248,6 +249,7 @@ interface StoreValue extends State {
   updateDocument: (patch: Partial<DocumentEntry>) => void;
   updateItems: (fn: (items: LineItem[]) => LineItem[]) => void;
   ensureDocument: (type: DocumentType) => void;
+  regenerateFromEstimate: () => void;
   deleteDocument: (type: DocumentType) => void;
   updateIssuer: (patch: Partial<IssuerInfo>) => void;
   updateActiveProject: (patch: Partial<Project>) => void;
@@ -702,6 +704,22 @@ export function FormgenProvider({ children }: { children: React.ReactNode }) {
           }));
         });
         patchUi({ activeType: type });
+      },
+
+      regenerateFromEstimate: () => {
+        const { activeClientId, activeProjectId, activeType } = state.ui;
+        if (!activeClientId || !activeProjectId || activeType === '見積書') return;
+        patchFile(file =>
+          mapProject(file, activeClientId, activeProjectId, p => {
+            const current = p.documents[activeType];
+            const estimate = p.documents['見積書'];
+            if (!current || !estimate) return p;
+            return {
+              ...p,
+              documents: { ...p.documents, [activeType]: regenerateFromEstimate(current, estimate) },
+            };
+          })
+        );
       },
 
       deleteDocument: type => {
