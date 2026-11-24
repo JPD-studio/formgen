@@ -105,6 +105,7 @@ function parseDocument(raw: unknown): DocumentEntry {
     estimateNumber: str(o.estimateNumber),
     condition: str(o.condition),
     notes: str(o.notes),
+    ...(o.locked === true ? { locked: true } : {}),
     items: arr(o.items).map(parseItem),
   };
 }
@@ -334,6 +335,7 @@ function toPlain(file: FormgenFileV3): Record<string, unknown> {
           if (d.estimateNumber) entry.estimateNumber = d.estimateNumber;
           if (d.condition) entry.condition = d.condition;
           if (d.notes) entry.notes = d.notes;
+          if (d.locked) entry.locked = true;
           entry.items = d.items.map(item => {
             const out: Record<string, unknown> = {};
             if (item.code) out.code = item.code;

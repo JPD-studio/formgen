@@ -9,6 +9,7 @@ import BulkImportDialog from './BulkImportDialog';
 interface LineItemsTableProps {
   items: LineItem[];
   onChange: (fn: (items: LineItem[]) => LineItem[]) => void;
+  locked?: boolean;
 }
 
 interface CellAddress {
@@ -51,7 +52,7 @@ const COLUMN_LABELS = ['品番', '品名', '数量', '単位', '単価', '税率
 
 const MAX_HISTORY = 50;
 
-export default function LineItemsTable({ items, onChange }: LineItemsTableProps) {
+export default function LineItemsTable({ items, onChange, locked = false }: LineItemsTableProps) {
   const [anchorCell, setAnchorCell] = useState<CellAddress | null>(null);
   const [focusCell, setFocusCell] = useState<CellAddress | null>(null);
   const [draggedRow, setDraggedRow] = useState<number | null>(null);
@@ -431,7 +432,7 @@ export default function LineItemsTable({ items, onChange }: LineItemsTableProps)
               {items.map((item, rowIndex) => (
                 <tr
                   key={item.id}
-                  draggable
+                  draggable={!locked}
                   onDragStart={e => handleDragStart(rowIndex, e)}
                   onDragOver={e => handleDragOver(rowIndex, e)}
                   onDrop={e => handleDrop(rowIndex, e)}

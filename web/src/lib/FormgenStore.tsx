@@ -667,6 +667,8 @@ export function FormgenProvider({ children }: { children: React.ReactNode }) {
           mapProject(file, activeClientId, activeProjectId, p => {
             const current = p.documents[activeType];
             if (!current) return p;
+            // ロック中は、ロック解除以外の変更を受け付けない
+            if (current.locked && !('locked' in patch)) return p;
             return { ...p, documents: { ...p.documents, [activeType]: { ...current, ...patch } } };
           })
         );
@@ -678,7 +680,7 @@ export function FormgenProvider({ children }: { children: React.ReactNode }) {
         patchFile(file =>
           mapProject(file, activeClientId, activeProjectId, p => {
             const current = p.documents[activeType];
-            if (!current) return p;
+            if (!current || current.locked) return p;
             return {
               ...p,
               documents: { ...p.documents, [activeType]: { ...current, items: fn(current.items) } },
@@ -713,7 +715,7 @@ export function FormgenProvider({ children }: { children: React.ReactNode }) {
           mapProject(file, activeClientId, activeProjectId, p => {
             const current = p.documents[activeType];
             const estimate = p.documents['見積書'];
-            if (!current || !estimate) return p;
+            if (!current || !estimate || current.locked) return p;
             return {
               ...p,
               documents: { ...p.documents, [activeType]: regenerateFromEstimate(current, estimate) },

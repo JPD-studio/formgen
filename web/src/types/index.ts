@@ -22,6 +22,7 @@ export interface DocumentEntry {
   estimateNumber: string;  // 見積書番号 (請求書・納品書のみ使用)
   condition: string;       // 見積有効期限 / 支払条件
   notes: string;           // 特記事項
+  locked?: boolean;        // ロック中は編集できない
   items: LineItem[];
 }
 
